@@ -14,6 +14,7 @@ from ..models import (
     WorkflowStatus,
     WorkflowUpdate,
 )
+from .action_registry import run_action
 
 
 # In-memory storage (replace with database in production)
@@ -151,7 +152,7 @@ def _execute_task(task: TaskDefinition) -> TaskResult:
     """Execute a single task and return its result."""
     started = datetime.utcnow()
     try:
-        output = _run_action(task.action, task.parameters)
+        output = run_action(task.action, task.parameters)
         completed = datetime.utcnow()
         duration = int((completed - started).total_seconds() * 1000)
         return TaskResult(
@@ -173,21 +174,6 @@ def _execute_task(task: TaskDefinition) -> TaskResult:
             error=str(exc),
             duration_ms=duration,
         )
-
-
-def _run_action(action: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-    """Dispatch and run a task action."""
-    actions = {
-        "log": lambda p: {"message": p.get("message", "logged")},
-        "transform": lambda p: {"transformed": True, "input_keys": list(p.keys())},
-        "validate": lambda p: {"valid": bool(p)},
-        "notify": lambda p: {"notified": True, "channel": p.get("channel", "default")},
-        "aggregate": lambda p: {"count": len(p), "keys": list(p.keys())},
-    }
-    handler = actions.get(action)
-    if not handler:
-        raise ValueError(f"Unknown action: {action}")
-    return handler(parameters)
 
 
 def clear_all() -> None:
