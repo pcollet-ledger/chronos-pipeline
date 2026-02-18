@@ -34,7 +34,7 @@ class TestValidateCron:
     def test_invalid_expressions(self):
         assert validate_cron("") is False
         assert validate_cron("* *") is False
-        assert validate_cron("60 * * * *") is False  # still matches the regex pattern
+        assert validate_cron("60 * * * *") is False
         assert validate_cron("not a cron") is False
         assert validate_cron("* * * * * *") is False  # 6 fields
 
