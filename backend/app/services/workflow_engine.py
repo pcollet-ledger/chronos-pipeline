@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypedDict, Union
 
 from ..models import (
     TaskDefinition,
@@ -14,6 +14,34 @@ from ..models import (
     WorkflowStatus,
     WorkflowUpdate,
 )
+
+
+class LogOutput(TypedDict):
+    message: str
+
+
+class TransformOutput(TypedDict):
+    transformed: bool
+    input_keys: List[str]
+
+
+class ValidateOutput(TypedDict):
+    valid: bool
+
+
+class NotifyOutput(TypedDict):
+    notified: bool
+    channel: str
+
+
+class AggregateOutput(TypedDict):
+    count: int
+    keys: List[str]
+
+
+ActionOutput = Union[LogOutput, TransformOutput, ValidateOutput, NotifyOutput, AggregateOutput]
+
+_ActionHandler = Callable[[Dict[str, Any]], ActionOutput]
 
 
 # In-memory storage (replace with database in production)
@@ -128,8 +156,8 @@ def list_executions(
 
 def _topological_sort(tasks: List[TaskDefinition]) -> List[TaskDefinition]:
     """Sort tasks respecting dependency order."""
-    task_map = {t.id: t for t in tasks}
-    visited: set = set()
+    task_map: Dict[str, TaskDefinition] = {t.id: t for t in tasks}
+    visited: set[str] = set()
     order: List[TaskDefinition] = []
 
     def visit(task_id: str) -> None:
@@ -175,14 +203,17 @@ def _execute_task(task: TaskDefinition) -> TaskResult:
         )
 
 
-def _run_action(action: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-    """Dispatch and run a task action."""
-    actions = {
-        "log": lambda p: {"message": p.get("message", "logged")},
-        "transform": lambda p: {"transformed": True, "input_keys": list(p.keys())},
-        "validate": lambda p: {"valid": bool(p)},
-        "notify": lambda p: {"notified": True, "channel": p.get("channel", "default")},
-        "aggregate": lambda p: {"count": len(p), "keys": list(p.keys())},
+def _run_action(action: str, parameters: Dict[str, Any]) -> ActionOutput:
+    """Dispatch and run a task action.
+
+    Raises ``ValueError`` if *action* is not a recognised action name.
+    """
+    actions: Dict[str, _ActionHandler] = {
+        "log": lambda p: LogOutput(message=p.get("message", "logged")),
+        "transform": lambda p: TransformOutput(transformed=True, input_keys=list(p.keys())),
+        "validate": lambda p: ValidateOutput(valid=bool(p)),
+        "notify": lambda p: NotifyOutput(notified=True, channel=p.get("channel", "default")),
+        "aggregate": lambda p: AggregateOutput(count=len(p), keys=list(p.keys())),
     }
     handler = actions.get(action)
     if not handler:
