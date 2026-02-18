@@ -5,12 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from .action_registry import run_action as _run_action
 from ..models import (
     TaskDefinition,
     TaskResult,
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowExecution,
+    WorkflowImport,
     WorkflowStatus,
     WorkflowUpdate,
 )
@@ -126,6 +128,37 @@ def list_executions(
     return results[:limit]
 
 
+def export_workflow(workflow_id: str) -> Optional[Dict[str, Any]]:
+    """Export a workflow definition as a portable dictionary.
+
+    The exported payload omits internal fields (``id``, ``created_at``,
+    ``updated_at``) so it can be re-imported into any instance.
+    """
+    workflow = _workflows.get(workflow_id)
+    if not workflow:
+        return None
+    data = workflow.model_dump()
+    for key in ("id", "created_at", "updated_at"):
+        data.pop(key, None)
+    for task in data.get("tasks", []):
+        task.pop("id", None)
+    data["version"] = "1.0"
+    return data
+
+
+def import_workflow(data: WorkflowImport) -> WorkflowDefinition:
+    """Import a workflow from an exported definition, assigning fresh IDs."""
+    workflow = WorkflowDefinition(
+        name=data.name,
+        description=data.description,
+        tasks=data.tasks,
+        schedule=data.schedule,
+        tags=data.tags,
+    )
+    _workflows[workflow.id] = workflow
+    return workflow
+
+
 def _topological_sort(tasks: List[TaskDefinition]) -> List[TaskDefinition]:
     """Sort tasks respecting dependency order."""
     task_map = {t.id: t for t in tasks}
@@ -173,21 +206,6 @@ def _execute_task(task: TaskDefinition) -> TaskResult:
             error=str(exc),
             duration_ms=duration,
         )
-
-
-def _run_action(action: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-    """Dispatch and run a task action."""
-    actions = {
-        "log": lambda p: {"message": p.get("message", "logged")},
-        "transform": lambda p: {"transformed": True, "input_keys": list(p.keys())},
-        "validate": lambda p: {"valid": bool(p)},
-        "notify": lambda p: {"notified": True, "channel": p.get("channel", "default")},
-        "aggregate": lambda p: {"count": len(p), "keys": list(p.keys())},
-    }
-    handler = actions.get(action)
-    if not handler:
-        raise ValueError(f"Unknown action: {action}")
-    return handler(parameters)
 
 
 def clear_all() -> None:
