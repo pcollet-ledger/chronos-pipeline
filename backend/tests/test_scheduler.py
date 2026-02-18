@@ -135,3 +135,163 @@ class TestComputeNextRun:
         assert result.hour == 8
         assert result.minute == 0
         assert result.day == 16
+
+
+class TestOverlappingSchedules:
+    """Multiple schedules whose next_run times coincide."""
+
+    def test_multiple_due_at_same_time(self):
+        """All schedules targeting the same minute should all appear as due."""
+        now = datetime.utcnow()
+        past = now - timedelta(minutes=1)
+
+        entry_a = register_schedule("wf-overlap-a", "0 * * * *")
+        entry_b = register_schedule("wf-overlap-b", "0 * * * *")
+        entry_c = register_schedule("wf-overlap-c", "0 * * * *")
+
+        entry_a.next_run = past
+        entry_b.next_run = past
+        entry_c.next_run = past
+
+        due = get_due_schedules()
+        due_ids = {e.workflow_id for e in due}
+        assert due_ids == {"wf-overlap-a", "wf-overlap-b", "wf-overlap-c"}
+
+    def test_mixed_due_and_pending(self):
+        """Only past-due schedules should be returned, not future ones."""
+        now = datetime.utcnow()
+
+        entry_due = register_schedule("wf-due-now", "0 * * * *")
+        entry_future = register_schedule("wf-later", "30 * * * *")
+
+        entry_due.next_run = now - timedelta(minutes=2)
+        entry_future.next_run = now + timedelta(hours=1)
+
+        due = get_due_schedules()
+        assert len(due) == 1
+        assert due[0].workflow_id == "wf-due-now"
+
+    def test_overlapping_list_order(self):
+        """Schedules with the same next_run should all appear in list_schedules."""
+        shared_time = datetime(2026, 6, 1, 12, 0, 0)
+
+        for i in range(5):
+            entry = register_schedule(f"wf-ov-{i}", "0 12 * * *")
+            entry.next_run = shared_time
+
+        entries = list_schedules()
+        assert len(entries) == 5
+
+
+class TestReRegistration:
+    """Re-registering the same workflow_id should overwrite the previous entry."""
+
+    def test_reregister_overwrites_entry(self):
+        original = register_schedule("wf-dup", "0 * * * *", tags=["v1"])
+        mark_executed("wf-dup")
+        assert get_schedule("wf-dup").run_count == 1
+
+        replacement = register_schedule("wf-dup", "30 * * * *", tags=["v2"])
+        entry = get_schedule("wf-dup")
+        assert entry.cron_expression == "30 * * * *"
+        assert entry.tags == ["v2"]
+        assert entry.run_count == 0, "Re-registration should reset run_count"
+
+    def test_reregister_preserves_single_entry(self):
+        register_schedule("wf-dup", "0 * * * *")
+        register_schedule("wf-dup", "15 * * * *")
+        assert len(list_schedules()) == 1
+
+    def test_reregister_updates_next_run(self):
+        base = datetime(2026, 3, 10, 10, 0, 0)
+        register_schedule("wf-dup", "0 * * * *")
+        replacement = register_schedule("wf-dup", "45 * * * *")
+        assert replacement.next_run is not None
+        assert replacement.next_run.minute == 45
+
+
+class TestBoundaryCronMinutes:
+    """Boundary values for the minute field: 0 and 59."""
+
+    def test_minute_zero(self):
+        base = datetime(2026, 1, 15, 10, 1, 0)
+        result = compute_next_run("0 * * * *", from_time=base)
+        assert result.minute == 0
+        assert result.hour == 11, "Minute 0 already passed this hour, advance to next"
+
+    def test_minute_zero_exact(self):
+        base = datetime(2026, 1, 15, 10, 0, 0)
+        result = compute_next_run("0 * * * *", from_time=base)
+        assert result.minute == 0
+        assert result.hour == 11, "Exact match should still advance"
+
+    def test_minute_59(self):
+        base = datetime(2026, 1, 15, 10, 30, 0)
+        result = compute_next_run("59 * * * *", from_time=base)
+        assert result.minute == 59
+        assert result.hour == 10, "Minute 59 hasn't passed yet this hour"
+
+    def test_minute_59_after_passing(self):
+        base = datetime(2026, 1, 15, 10, 59, 0)
+        result = compute_next_run("59 * * * *", from_time=base)
+        assert result.minute == 59
+        assert result.hour == 11, "Minute 59 is current, should advance to next hour"
+
+    def test_validate_cron_minute_0(self):
+        assert validate_cron("0 * * * *") is True
+
+    def test_validate_cron_minute_59(self):
+        assert validate_cron("59 * * * *") is True
+
+    def test_register_boundary_minutes(self):
+        entry_0 = register_schedule("wf-min0", "0 * * * *")
+        entry_59 = register_schedule("wf-min59", "59 * * * *")
+        assert entry_0.next_run.minute == 0
+        assert entry_59.next_run.minute == 59
+
+
+class TestDayBoundaryScheduling:
+    """Scheduling across day boundaries (23:xx -> 00:xx next day)."""
+
+    def test_next_run_crosses_midnight(self):
+        base = datetime(2026, 1, 15, 23, 30, 0)
+        result = compute_next_run("0 8 * * *", from_time=base)
+        assert result.day == 16
+        assert result.hour == 8
+        assert result.minute == 0
+
+    def test_minute_rollover_at_2359(self):
+        base = datetime(2026, 1, 15, 23, 59, 0)
+        result = compute_next_run("* * * * *", from_time=base)
+        assert result == datetime(2026, 1, 16, 0, 0, 0)
+
+    def test_specific_minute_crosses_midnight(self):
+        base = datetime(2026, 1, 15, 23, 50, 0)
+        result = compute_next_run("15 * * * *", from_time=base)
+        assert result.day == 16
+        assert result.hour == 0
+        assert result.minute == 15
+
+    def test_month_boundary(self):
+        base = datetime(2026, 1, 31, 23, 30, 0)
+        result = compute_next_run("0 8 * * *", from_time=base)
+        assert result.month == 2
+        assert result.day == 1
+        assert result.hour == 8
+
+    def test_due_detection_across_midnight(self):
+        """A schedule due at 23:55 should be detected as due after midnight."""
+        entry = register_schedule("wf-night", "55 23 * * *")
+        entry.next_run = datetime(2026, 1, 15, 23, 55, 0)
+
+        check_time = datetime(2026, 1, 16, 0, 5, 0)
+        due = get_due_schedules(now=check_time)
+        assert len(due) == 1
+        assert due[0].workflow_id == "wf-night"
+
+    def test_mark_executed_recomputes_next_day(self):
+        entry = register_schedule("wf-daily", "0 6 * * *")
+        entry.next_run = datetime(2026, 1, 15, 6, 0, 0)
+        mark_executed("wf-daily")
+        updated = get_schedule("wf-daily")
+        assert updated.next_run > datetime(2026, 1, 15, 6, 0, 0)
