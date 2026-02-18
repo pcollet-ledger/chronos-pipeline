@@ -93,6 +93,15 @@ class WorkflowUpdate(BaseModel):
     tags: Optional[List[str]] = None
 
 
+class WorkflowImport(BaseModel):
+    """Request body for importing a workflow from an exported JSON definition."""
+    name: str
+    description: str = ""
+    tasks: List[TaskDefinition] = Field(default_factory=list)
+    schedule: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
 class AnalyticsSummary(BaseModel):
     """Summary analytics for the dashboard."""
     total_workflows: int = 0

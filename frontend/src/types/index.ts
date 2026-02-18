@@ -48,6 +48,15 @@ export interface WorkflowExecution {
   trigger: string;
 }
 
+export interface WorkflowImportPayload {
+  name: string;
+  description?: string;
+  tasks?: TaskDefinition[];
+  schedule?: string | null;
+  tags?: string[];
+  version?: string;
+}
+
 export interface AnalyticsSummary {
   total_workflows: number;
   total_executions: number;

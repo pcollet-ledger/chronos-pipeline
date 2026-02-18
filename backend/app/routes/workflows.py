@@ -1,13 +1,15 @@
 """Workflow CRUD and execution endpoints."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 
 from ..models import (
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowExecution,
+    WorkflowImport,
     WorkflowUpdate,
 )
 from ..services import workflow_engine
@@ -27,6 +29,12 @@ async def list_workflows(tag: Optional[str] = None, limit: int = 50, offset: int
     return workflow_engine.list_workflows(tag=tag, limit=limit, offset=offset)
 
 
+@router.post("/import", response_model=WorkflowDefinition, status_code=201)
+async def import_workflow(data: WorkflowImport):
+    """Import a workflow from an exported JSON definition."""
+    return workflow_engine.import_workflow(data)
+
+
 @router.get("/{workflow_id}", response_model=WorkflowDefinition)
 async def get_workflow(workflow_id: str):
     """Get a workflow by ID."""
@@ -34,6 +42,19 @@ async def get_workflow(workflow_id: str):
     if not wf:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return wf
+
+
+@router.get("/{workflow_id}/export")
+async def export_workflow(workflow_id: str):
+    """Export a workflow definition as a downloadable JSON file."""
+    payload = workflow_engine.export_workflow(workflow_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    filename = f"workflow-{workflow_id}.json"
+    return JSONResponse(
+        content=payload,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.patch("/{workflow_id}", response_model=WorkflowDefinition)

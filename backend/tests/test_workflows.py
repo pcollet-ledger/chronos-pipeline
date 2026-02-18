@@ -138,3 +138,94 @@ class TestExecuteWorkflow:
         wf_id = create_resp.json()["id"]
         resp = client.post(f"/api/workflows/{wf_id}/execute")
         assert resp.json()["status"] == "failed"
+
+
+class TestExportWorkflow:
+    def test_export_returns_json(self, client):
+        create_resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = create_resp.json()["id"]
+        resp = client.get(f"/api/workflows/{wf_id}/export")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == "Test Workflow"
+        assert data["version"] == "1.0"
+        assert "id" not in data
+        assert "created_at" not in data
+        assert "updated_at" not in data
+
+    def test_export_tasks_have_no_id(self, client):
+        create_resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = create_resp.json()["id"]
+        resp = client.get(f"/api/workflows/{wf_id}/export")
+        data = resp.json()
+        for task in data["tasks"]:
+            assert "id" not in task
+
+    def test_export_has_content_disposition(self, client):
+        create_resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = create_resp.json()["id"]
+        resp = client.get(f"/api/workflows/{wf_id}/export")
+        assert "content-disposition" in resp.headers
+        assert f"workflow-{wf_id}.json" in resp.headers["content-disposition"]
+
+    def test_export_not_found(self, client):
+        resp = client.get("/api/workflows/nonexistent/export")
+        assert resp.status_code == 404
+
+
+class TestImportWorkflow:
+    def test_import_creates_workflow(self, client):
+        create_resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = create_resp.json()["id"]
+        export_resp = client.get(f"/api/workflows/{wf_id}/export")
+        exported = export_resp.json()
+
+        resp = client.post("/api/workflows/import", json=exported)
+        assert resp.status_code == 201
+        imported = resp.json()
+        assert imported["name"] == "Test Workflow"
+        assert imported["id"] != wf_id
+        assert len(imported["tasks"]) == 2
+
+    def test_import_assigns_fresh_ids(self, client):
+        create_resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = create_resp.json()["id"]
+        original_tasks = create_resp.json()["tasks"]
+
+        export_resp = client.get(f"/api/workflows/{wf_id}/export")
+        exported = export_resp.json()
+
+        resp = client.post("/api/workflows/import", json=exported)
+        imported_tasks = resp.json()["tasks"]
+        for orig, imp in zip(original_tasks, imported_tasks):
+            assert orig["id"] != imp["id"]
+
+    def test_import_roundtrip_preserves_data(self, client):
+        create_resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = create_resp.json()["id"]
+        export_resp = client.get(f"/api/workflows/{wf_id}/export")
+        exported = export_resp.json()
+
+        resp = client.post("/api/workflows/import", json=exported)
+        imported = resp.json()
+        assert imported["description"] == "A test workflow"
+        assert imported["tags"] == ["test", "ci"]
+        assert imported["tasks"][0]["action"] == "log"
+        assert imported["tasks"][1]["action"] == "validate"
+
+    def test_import_minimal_payload(self, client):
+        resp = client.post("/api/workflows/import", json={"name": "Imported Minimal"})
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "Imported Minimal"
+        assert resp.json()["tasks"] == []
+
+    def test_import_validation_error(self, client):
+        resp = client.post("/api/workflows/import", json={})
+        assert resp.status_code == 422
+
+    def test_imported_workflow_is_listable(self, client):
+        resp = client.post("/api/workflows/import", json={"name": "Listed"})
+        assert resp.status_code == 201
+        list_resp = client.get("/api/workflows/")
+        names = [w["name"] for w in list_resp.json()]
+        assert "Listed" in names
