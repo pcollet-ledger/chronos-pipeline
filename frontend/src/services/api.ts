@@ -1,4 +1,4 @@
-import type { AnalyticsSummary, Workflow, WorkflowExecution } from "../types";
+import type { AnalyticsSummary, Workflow, WorkflowExecution, WorkflowImportPayload } from "../types";
 
 const BASE = "/api";
 
@@ -37,6 +37,15 @@ export const deleteWorkflow = (id: string) =>
 
 export const executeWorkflow = (id: string) =>
   request<WorkflowExecution>(`/workflows/${id}/execute`, { method: "POST" });
+
+export const exportWorkflow = (id: string) =>
+  request<WorkflowImportPayload>(`/workflows/${id}/export`);
+
+export const importWorkflow = (data: WorkflowImportPayload) =>
+  request<Workflow>("/workflows/import", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
 // Executions
 export const listExecutions = (status?: string) => {

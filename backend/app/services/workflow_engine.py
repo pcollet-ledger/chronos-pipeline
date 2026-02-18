@@ -11,6 +11,7 @@ from ..models import (
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowExecution,
+    WorkflowImport,
     WorkflowStatus,
     WorkflowUpdate,
 )
@@ -124,6 +125,37 @@ def list_executions(
         results = [e for e in results if e.status == status]
     results.sort(key=lambda e: e.started_at or datetime.min, reverse=True)
     return results[:limit]
+
+
+def export_workflow(workflow_id: str) -> Optional[Dict[str, Any]]:
+    """Export a workflow definition as a portable dictionary.
+
+    The exported payload omits internal fields (``id``, ``created_at``,
+    ``updated_at``) so it can be re-imported into any instance.
+    """
+    workflow = _workflows.get(workflow_id)
+    if not workflow:
+        return None
+    data = workflow.model_dump()
+    for key in ("id", "created_at", "updated_at"):
+        data.pop(key, None)
+    for task in data.get("tasks", []):
+        task.pop("id", None)
+    data["version"] = "1.0"
+    return data
+
+
+def import_workflow(data: WorkflowImport) -> WorkflowDefinition:
+    """Import a workflow from an exported definition, assigning fresh IDs."""
+    workflow = WorkflowDefinition(
+        name=data.name,
+        description=data.description,
+        tasks=data.tasks,
+        schedule=data.schedule,
+        tags=data.tags,
+    )
+    _workflows[workflow.id] = workflow
+    return workflow
 
 
 def _topological_sort(tasks: List[TaskDefinition]) -> List[TaskDefinition]:
