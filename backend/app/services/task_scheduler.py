@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 
 @dataclass
@@ -62,10 +62,10 @@ def list_schedules(enabled_only: bool = False) -> List[ScheduleEntry]:
 
 def get_due_schedules(now: Optional[datetime] = None) -> List[ScheduleEntry]:
     """Get all schedules that are due for execution."""
-    now = now or datetime.utcnow()
-    due = []
+    current_time: datetime = now or datetime.utcnow()
+    due: List[ScheduleEntry] = []
     for entry in _schedule_registry.values():
-        if entry.enabled and entry.next_run and entry.next_run <= now:
+        if entry.enabled and entry.next_run and entry.next_run <= current_time:
             due.append(entry)
     return due
 
@@ -91,29 +91,64 @@ def toggle_schedule(workflow_id: str, enabled: bool) -> Optional[ScheduleEntry]:
 
 
 def validate_cron(expression: str) -> bool:
-    """Validate a cron expression (simplified 5-field format)."""
-    parts = expression.strip().split()
+    """Validate a cron expression (simplified 5-field format).
+
+    Fields: minute (0-59), hour (0-23), day-of-month (1-31),
+    month (1-12), day-of-week (0-6).
+    """
+    parts: List[str] = expression.strip().split()
     if len(parts) != 5:
         return False
-    patterns = [
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-6](-[0-6])?(,[0-6])*(/[0-6])?)$",
-    ]
-    for part, pattern in zip(parts, patterns):
-        if not re.match(pattern, part):
+
+    _FIELD_RANGES: Sequence[tuple[int, int]] = (
+        (0, 59),   # minute
+        (0, 23),   # hour
+        (1, 31),   # day of month
+        (1, 12),   # month
+        (0, 6),    # day of week
+    )
+
+    for part, (lo, hi) in zip(parts, _FIELD_RANGES):
+        if not _validate_cron_field(part, lo, hi):
             return False
+    return True
+
+
+def _validate_cron_field(field: str, lo: int, hi: int) -> bool:
+    """Validate a single cron field against its allowed range."""
+    pattern: str = r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*)(/[0-9]{1,2})?$"
+    if not re.match(pattern, field):
+        return False
+
+    step_parts: List[str] = field.split("/")
+    base: str = step_parts[0]
+
+    if len(step_parts) == 2:
+        step_val: int = int(step_parts[1])
+        if step_val < 1 or step_val > hi:
+            return False
+
+    if base == "*":
+        return True
+
+    for token in base.split(","):
+        range_parts: List[str] = token.split("-")
+        for num_str in range_parts:
+            val: int = int(num_str)
+            if val < lo or val > hi:
+                return False
+        if len(range_parts) == 2 and int(range_parts[0]) > int(range_parts[1]):
+            return False
+
     return True
 
 
 def compute_next_run(cron_expression: str, from_time: Optional[datetime] = None) -> datetime:
     """Compute the next run time from a cron expression (simplified)."""
-    base = from_time or datetime.utcnow()
-    parts = cron_expression.strip().split()
-    minute_spec = parts[0]
-    hour_spec = parts[1]
+    base: datetime = from_time or datetime.utcnow()
+    parts: List[str] = cron_expression.strip().split()
+    minute_spec: str = parts[0]
+    hour_spec: str = parts[1]
 
     if minute_spec == "*" and hour_spec == "*":
         return base + timedelta(minutes=1)
