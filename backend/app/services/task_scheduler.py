@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -91,21 +90,14 @@ def toggle_schedule(workflow_id: str, enabled: bool) -> Optional[ScheduleEntry]:
 
 
 def validate_cron(expression: str) -> bool:
-    """Validate a cron expression (simplified 5-field format)."""
-    parts = expression.strip().split()
-    if len(parts) != 5:
-        return False
-    patterns = [
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-9]{1,2}(-[0-9]{1,2})?(,[0-9]{1,2})*(/[0-9]{1,2})?)$",
-        r"^(\*|[0-6](-[0-6])?(,[0-6])*(/[0-6])?)$",
-    ]
-    for part, pattern in zip(parts, patterns):
-        if not re.match(pattern, part):
-            return False
-    return True
+    """Validate a cron expression (simplified 5-field format).
+
+    Delegates to the shared implementation in ``app.models`` to keep
+    validation consistent across the scheduler and the API layer.
+    """
+    from ..models import validate_cron_expression
+
+    return validate_cron_expression(expression)
 
 
 def compute_next_run(cron_expression: str, from_time: Optional[datetime] = None) -> datetime:
