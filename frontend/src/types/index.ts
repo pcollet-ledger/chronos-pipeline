@@ -52,6 +52,13 @@ export interface WorkflowExecution {
   trigger: string;
 }
 
+export interface BulkDeleteResponse {
+  deleted: number;
+  not_found: number;
+  deleted_ids: string[];
+  not_found_ids: string[];
+}
+
 export interface AnalyticsSummary {
   total_workflows: number;
   total_executions: number;

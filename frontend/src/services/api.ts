@@ -1,4 +1,4 @@
-import type { AnalyticsSummary, Workflow, WorkflowExecution } from "../types";
+import type { AnalyticsSummary, BulkDeleteResponse, Workflow, WorkflowExecution } from "../types";
 
 const BASE = "/api";
 
@@ -34,6 +34,12 @@ export const updateWorkflow = (id: string, data: Partial<Workflow>) =>
 
 export const deleteWorkflow = (id: string) =>
   request<void>(`/workflows/${id}`, { method: "DELETE" });
+
+export const bulkDeleteWorkflows = (ids: string[]) =>
+  request<BulkDeleteResponse>("/workflows/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
 
 export const executeWorkflow = (id: string) =>
   request<WorkflowExecution>(`/workflows/${id}/execute`, { method: "POST" });

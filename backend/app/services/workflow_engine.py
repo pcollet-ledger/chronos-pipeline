@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, TypedDict, Union
 
 from ..models import (
+    BulkDeleteResponse,
     TaskDefinition,
     TaskResult,
     WorkflowCreate,
@@ -101,6 +102,42 @@ def delete_workflow(workflow_id: str) -> bool:
         del _workflows[workflow_id]
         return True
     return False
+
+
+def bulk_delete_workflows(workflow_ids: List[str]) -> BulkDeleteResponse:
+    """Delete multiple workflows in one operation.
+
+    Duplicate IDs in the input are deduplicated so that each unique ID is
+    processed exactly once.  IDs that do not match an existing workflow are
+    tracked in ``not_found_ids`` rather than raising an error, allowing
+    callers to treat the operation as idempotent.
+
+    Returns a ``BulkDeleteResponse`` summarising how many workflows were
+    successfully deleted vs. not found.
+    """
+    # Deduplicate while preserving first-seen order
+    seen: set[str] = set()
+    unique_ids: List[str] = []
+    for wid in workflow_ids:
+        if wid not in seen:
+            seen.add(wid)
+            unique_ids.append(wid)
+
+    deleted_ids: List[str] = []
+    not_found_ids: List[str] = []
+
+    for wid in unique_ids:
+        if delete_workflow(wid):
+            deleted_ids.append(wid)
+        else:
+            not_found_ids.append(wid)
+
+    return BulkDeleteResponse(
+        deleted=len(deleted_ids),
+        not_found=len(not_found_ids),
+        deleted_ids=deleted_ids,
+        not_found_ids=not_found_ids,
+    )
 
 
 def execute_workflow(workflow_id: str, trigger: str = "manual") -> Optional[WorkflowExecution]:

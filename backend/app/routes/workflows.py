@@ -5,6 +5,8 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 
 from ..models import (
+    BulkDeleteRequest,
+    BulkDeleteResponse,
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowExecution,
@@ -25,6 +27,17 @@ async def create_workflow(data: WorkflowCreate):
 async def list_workflows(tag: Optional[str] = None, limit: int = 50, offset: int = 0):
     """List all workflow definitions."""
     return workflow_engine.list_workflows(tag=tag, limit=limit, offset=offset)
+
+
+@router.post("/bulk-delete", response_model=BulkDeleteResponse)
+async def bulk_delete_workflows(data: BulkDeleteRequest):
+    """Delete multiple workflows in a single request.
+
+    Accepts a JSON body with a list of workflow IDs.  IDs that do not
+    match an existing workflow are reported as ``not_found`` rather than
+    causing an error, making the operation safe to retry.
+    """
+    return workflow_engine.bulk_delete_workflows(data.ids)
 
 
 @router.get("/{workflow_id}", response_model=WorkflowDefinition)
