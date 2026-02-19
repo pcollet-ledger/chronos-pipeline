@@ -168,3 +168,36 @@ class TestAnalyticsEdgeCases:
         clear_cache()
         summary = client.get("/api/analytics/summary").json()
         assert len(summary["recent_executions"]) <= 10
+
+    def test_summary_executions_by_status_keys(self, client):
+        _create_and_execute(client)
+        clear_cache()
+        summary = client.get("/api/analytics/summary").json()
+        assert "completed" in summary["executions_by_status"]
+
+    def test_workflow_stats_success_rate(self, client):
+        wf_id = _create_and_execute(client, "RateWF")
+        client.post(f"/api/workflows/{wf_id}/execute")
+        clear_cache()
+        stats = client.get(f"/api/analytics/workflows/{wf_id}/stats").json()
+        assert stats["success_rate"] == 100.0
+
+    def test_workflow_stats_duration_fields(self, client):
+        wf_id = _create_and_execute(client, "DurWF")
+        clear_cache()
+        stats = client.get(f"/api/analytics/workflows/{wf_id}/stats").json()
+        assert "avg_duration_ms" in stats
+        assert "min_duration_ms" in stats
+        assert "max_duration_ms" in stats
+
+    def test_timeline_bucket_count(self, client):
+        resp = client.get("/api/analytics/timeline", params={"hours": 2, "bucket_minutes": 60})
+        data = resp.json()
+        assert len(data) >= 2
+
+    def test_summary_returns_correct_total_workflows(self, client):
+        for i in range(3):
+            client.post("/api/workflows/", json={"name": f"WF-{i}"})
+        clear_cache()
+        summary = client.get("/api/analytics/summary").json()
+        assert summary["total_workflows"] == 3

@@ -172,3 +172,80 @@ class TestTopologicalSort:
         ids = [tr.task_id for tr in ex.task_results]
         assert ids[0] == "A"
         assert ids[-1] == "D"
+
+    def test_multiple_roots(self):
+        """Multiple tasks with no dependencies all appear before their dependents."""
+        tasks = [
+            _make_task("R1"),
+            _make_task("R2"),
+            _make_task("R3"),
+            _make_task("Sink", ["R1", "R2", "R3"]),
+        ]
+        order = _topological_sort(tasks)
+        ids = [t.id for t in order]
+        assert ids[-1] == "Sink"
+        assert set(ids[:3]) == {"R1", "R2", "R3"}
+
+    def test_duplicate_dependency_reference(self):
+        """A task listing the same dependency twice should still work."""
+        tasks = [
+            _make_task("A"),
+            _make_task("B", ["A", "A"]),
+        ]
+        order = _topological_sort(tasks)
+        assert len(order) == 2
+        assert [t.id for t in order] == ["A", "B"]
+
+    def test_deep_chain_10_tasks(self):
+        """Chain of 10 tasks: T0 -> T1 -> ... -> T9."""
+        tasks = []
+        for i in range(10):
+            deps = [f"T{i-1}"] if i > 0 else []
+            tasks.append(_make_task(f"T{i}", deps))
+        order = _topological_sort(tasks)
+        ids = [t.id for t in order]
+        for i in range(9):
+            assert ids.index(f"T{i}") < ids.index(f"T{i+1}")
+
+    def test_wide_dag_many_leaves(self):
+        """Root -> 10 leaf tasks with no further dependencies."""
+        tasks = [_make_task("root")]
+        for i in range(10):
+            tasks.append(_make_task(f"leaf-{i}", ["root"]))
+        order = _topological_sort(tasks)
+        assert order[0].id == "root"
+        assert len(order) == 11
+
+    def test_reverse_input_order(self):
+        """Tasks given in reverse dependency order should still sort correctly."""
+        tasks = [
+            _make_task("C", ["B"]),
+            _make_task("B", ["A"]),
+            _make_task("A"),
+        ]
+        order = _topological_sort(tasks)
+        ids = [t.id for t in order]
+        assert ids == ["A", "B", "C"]
+
+    def test_complex_dag_with_multiple_paths(self):
+        """A -> B, A -> C, B -> D, C -> D, D -> E."""
+        tasks = [
+            _make_task("A"),
+            _make_task("B", ["A"]),
+            _make_task("C", ["A"]),
+            _make_task("D", ["B", "C"]),
+            _make_task("E", ["D"]),
+        ]
+        order = _topological_sort(tasks)
+        ids = [t.id for t in order]
+        assert ids[0] == "A"
+        assert ids[-1] == "E"
+        assert ids.index("B") < ids.index("D")
+        assert ids.index("C") < ids.index("D")
+
+    def test_preserves_all_tasks(self):
+        """Every input task appears exactly once in the output."""
+        tasks = [_make_task(f"T{i}") for i in range(7)]
+        order = _topological_sort(tasks)
+        assert len(order) == 7
+        assert len(set(t.id for t in order)) == 7

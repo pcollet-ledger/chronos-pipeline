@@ -298,3 +298,69 @@ class TestFullLifecycle:
         output = exec_resp.json()["task_results"][0]["output"]
         assert "pre_hook_output" in output
         assert "post_hook_output" in output
+
+    def test_clone_then_execute_clone(self, client):
+        """Clone a workflow and execute the clone independently."""
+        resp = client.post("/api/workflows/", json={
+            "name": "Clonable",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        })
+        wf_id = resp.json()["id"]
+        clone_resp = client.post(f"/api/workflows/{wf_id}/clone")
+        clone_id = clone_resp.json()["id"]
+
+        exec_resp = client.post(f"/api/workflows/{clone_id}/execute")
+        assert exec_resp.json()["status"] == "completed"
+        assert exec_resp.json()["workflow_id"] == clone_id
+
+    def test_dry_run_does_not_affect_analytics(self, client):
+        """Dry-run should not appear in analytics."""
+        resp = client.post("/api/workflows/", json={
+            "name": "DryRun WF",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        })
+        wf_id = resp.json()["id"]
+        client.post(f"/api/workflows/{wf_id}/dry-run")
+
+        clear_cache()
+        summary = client.get("/api/analytics/summary").json()
+        assert summary["total_executions"] == 0
+
+    def test_versioning_after_multiple_updates(self, client):
+        """Version history should track all updates."""
+        resp = client.post("/api/workflows/", json={"name": "V1"})
+        wf_id = resp.json()["id"]
+        for i in range(5):
+            client.patch(f"/api/workflows/{wf_id}", json={"name": f"V{i+2}"})
+
+        history = client.get(f"/api/workflows/{wf_id}/history").json()
+        assert len(history) == 5
+
+        final = client.get(f"/api/workflows/{wf_id}").json()
+        assert final["version"] == 6
+
+    def test_search_and_tag_filter_combined(self, client):
+        """Search + tag filter should intersect correctly."""
+        client.post("/api/workflows/", json={"name": "Alpha Prod", "tags": ["prod"]})
+        client.post("/api/workflows/", json={"name": "Alpha Dev", "tags": ["dev"]})
+        client.post("/api/workflows/", json={"name": "Beta Prod", "tags": ["prod"]})
+
+        resp = client.get("/api/workflows/", params={"search": "alpha", "tag": "prod"})
+        assert len(resp.json()) == 1
+        assert resp.json()[0]["name"] == "Alpha Prod"
+
+    def test_compare_executions_via_api(self, client):
+        """Compare two executions of the same workflow."""
+        resp = client.post("/api/workflows/", json={
+            "name": "Compare WF",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        })
+        wf_id = resp.json()["id"]
+        ex1 = client.post(f"/api/workflows/{wf_id}/execute").json()
+        ex2 = client.post(f"/api/workflows/{wf_id}/execute").json()
+
+        cmp = client.get("/api/tasks/executions/compare", params={
+            "ids": f"{ex1['id']},{ex2['id']}"
+        })
+        assert cmp.status_code == 200
+        assert cmp.json()["workflow_id"] == wf_id

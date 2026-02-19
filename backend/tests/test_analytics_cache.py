@@ -218,3 +218,45 @@ class TestCacheViaAPI:
         resp = client.get(f"/api/analytics/workflows/{wf_id}/stats")
         assert resp.status_code == 200
         assert resp.json()["total_executions"] == 1
+
+
+class TestCacheEdgeCases:
+    """Additional edge-case tests for cache behaviour."""
+
+    def test_cache_empty_after_clear(self):
+        _create_and_execute()
+        get_summary(days=30)
+        clear_cache()
+        from app.services.analytics_service import _cache
+        assert len(_cache) == 0
+
+    def test_timeline_cached(self):
+        from app.services.analytics_service import get_execution_timeline
+        _create_and_execute()
+        clear_cache()
+        r1 = get_execution_timeline(hours=1, bucket_minutes=60)
+        r2 = get_execution_timeline(hours=1, bucket_minutes=60)
+        assert r1 is r2
+
+    def test_set_ttl_to_zero_disables_cache(self):
+        set_cache_ttl(0)
+        _create_and_execute()
+        r1 = get_summary(days=30)
+        r2 = get_summary(days=30)
+        assert r1 is not r2
+
+    def test_invalidate_is_alias_for_clear(self):
+        _create_and_execute()
+        get_summary(days=30)
+        invalidate_cache()
+        from app.services.analytics_service import _cache
+        assert len(_cache) == 0
+
+    def test_cache_key_differs_by_workflow_id(self):
+        wf1_id = _create_and_execute("WF1")
+        wf2_id = _create_and_execute("WF2")
+        clear_cache()
+        r1 = get_workflow_stats(wf1_id)
+        r2 = get_workflow_stats(wf2_id)
+        assert r1 is not r2
+        assert r1["workflow_id"] != r2["workflow_id"]

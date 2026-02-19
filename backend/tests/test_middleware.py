@@ -125,3 +125,24 @@ class TestMiddlewareWithAllEndpoints:
         assert resp.status_code == 422
         assert "x-request-id" in resp.headers
         assert "x-response-time" in resp.headers
+
+    def test_bulk_delete_has_headers(self, client):
+        resp = client.post("/api/workflows/bulk-delete", json={"ids": ["fake"]})
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_analytics_timeline_has_headers(self, client):
+        resp = client.get("/api/analytics/timeline")
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_execution_list_has_headers(self, client):
+        resp = client.get("/api/tasks/executions")
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_response_time_format_consistent(self, client):
+        """All endpoints should return timing in the same format."""
+        for path in ["/health", "/api/workflows/", "/api/analytics/summary"]:
+            resp = client.get(path)
+            assert TIMING_PATTERN.match(resp.headers["x-response-time"])
