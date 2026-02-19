@@ -69,6 +69,7 @@ class WorkflowDefinition(BaseModel):
     tasks: List[TaskDefinition] = Field(default_factory=list)
     schedule: Optional[str] = None  # Cron expression
     tags: List[str] = Field(default_factory=list)
+    version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -140,3 +141,33 @@ class AnalyticsSummary(BaseModel):
     executions_by_status: Dict[str, int] = Field(default_factory=dict)
     recent_executions: List[WorkflowExecution] = Field(default_factory=list)
     top_failing_workflows: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class TagsRequest(BaseModel):
+    """Request body for adding tags to a workflow."""
+    tags: List[str] = Field(..., min_length=1, description="Tags to add.")
+
+
+class TaskComparison(BaseModel):
+    """Side-by-side comparison of a single task across two executions."""
+    task_id: str
+    status_a: Optional[str] = None
+    status_b: Optional[str] = None
+    duration_diff_ms: Optional[int] = None
+
+
+class ExecutionComparisonSummary(BaseModel):
+    """Aggregate counts for an execution comparison."""
+    improved_count: int = 0
+    regressed_count: int = 0
+    unchanged_count: int = 0
+
+
+class ExecutionComparison(BaseModel):
+    """Full comparison of two executions of the same workflow."""
+    workflow_id: str
+    executions: List[WorkflowExecution] = Field(default_factory=list)
+    task_comparison: List[TaskComparison] = Field(default_factory=list)
+    summary: ExecutionComparisonSummary = Field(
+        default_factory=ExecutionComparisonSummary,
+    )
