@@ -1,12 +1,12 @@
 """Task-level endpoints for monitoring individual task executions.
 
-Includes listing, detail retrieval, retry, and cancellation of
-workflow executions.
+Includes listing, detail retrieval, retry, cancellation, and
+comparison of workflow executions.
 """
 
 from __future__ import annotations
 
-from typing import Annotated, List
+from typing import Annotated, Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
@@ -21,6 +21,29 @@ ExecutionIdPath = Annotated[
 ]
 
 
+@router.get("/executions/compare")
+async def compare_executions(
+    ids: Annotated[
+        str,
+        Query(description="Comma-separated pair of execution IDs to compare"),
+    ],
+) -> Dict[str, Any]:
+    """Compare two executions of the same workflow side-by-side."""
+    parts = [i.strip() for i in ids.split(",") if i.strip()]
+    if len(parts) != 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Exactly two comma-separated execution IDs are required",
+        )
+    try:
+        result = workflow_engine.compare_executions(parts[0], parts[1])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if result is None:
+        raise HTTPException(status_code=404, detail="One or both executions not found")
+    return result
+
+
 @router.get("/executions", response_model=List[WorkflowExecution])
 async def list_all_executions(
     status: Annotated[
@@ -32,18 +55,7 @@ async def list_all_executions(
         Query(ge=1, le=1000, description="Maximum number of results"),
     ] = 50,
 ) -> List[WorkflowExecution]:
-    """List all execution records across workflows.
-
-    Args:
-        status: Optional status filter (must be a valid WorkflowStatus value).
-        limit: Maximum number of results (1-1000).
-
-    Returns:
-        A list of execution records.
-
-    Raises:
-        HTTPException: 400 if the status value is invalid.
-    """
+    """List all execution records across workflows."""
     ws = None
     if status:
         try:
@@ -58,17 +70,7 @@ async def list_all_executions(
 
 @router.get("/executions/{execution_id}", response_model=WorkflowExecution)
 async def get_execution(execution_id: ExecutionIdPath) -> WorkflowExecution:
-    """Get details of a specific execution.
-
-    Args:
-        execution_id: The unique execution identifier.
-
-    Returns:
-        The execution record.
-
-    Raises:
-        HTTPException: 404 if the execution is not found.
-    """
+    """Get details of a specific execution."""
     ex = workflow_engine.get_execution(execution_id)
     if not ex:
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -77,18 +79,7 @@ async def get_execution(execution_id: ExecutionIdPath) -> WorkflowExecution:
 
 @router.post("/executions/{execution_id}/retry", response_model=WorkflowExecution)
 async def retry_execution(execution_id: ExecutionIdPath) -> WorkflowExecution:
-    """Re-run only the failed tasks from a previous execution.
-
-    Args:
-        execution_id: The unique execution identifier.
-
-    Returns:
-        A new execution record with retried results.
-
-    Raises:
-        HTTPException: 404 if the execution is not found.
-        HTTPException: 409 if the execution cannot be retried.
-    """
+    """Re-run only the failed tasks from a previous execution."""
     try:
         result = workflow_engine.retry_execution(execution_id)
     except ValueError as exc:
@@ -100,18 +91,7 @@ async def retry_execution(execution_id: ExecutionIdPath) -> WorkflowExecution:
 
 @router.post("/executions/{execution_id}/cancel", response_model=WorkflowExecution)
 async def cancel_execution(execution_id: ExecutionIdPath) -> WorkflowExecution:
-    """Cancel a RUNNING or PENDING execution.
-
-    Args:
-        execution_id: The unique execution identifier.
-
-    Returns:
-        The updated execution record with CANCELLED status.
-
-    Raises:
-        HTTPException: 404 if the execution is not found.
-        HTTPException: 409 if the execution is not in a cancellable state.
-    """
+    """Cancel a RUNNING or PENDING execution."""
     try:
         result = workflow_engine.cancel_execution(execution_id)
     except ValueError as exc:
