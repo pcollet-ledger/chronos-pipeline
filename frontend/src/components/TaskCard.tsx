@@ -39,6 +39,16 @@ export default function TaskCard({ task }: Props) {
           Deps: {task.depends_on.length}
         </div>
       )}
+      {task.pre_hook && (
+        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+          Pre-hook: <span style={{ color: "#94a3b8" }}>{task.pre_hook}</span>
+        </div>
+      )}
+      {task.post_hook && (
+        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+          Post-hook: <span style={{ color: "#94a3b8" }}>{task.post_hook}</span>
+        </div>
+      )}
     </div>
   );
 }

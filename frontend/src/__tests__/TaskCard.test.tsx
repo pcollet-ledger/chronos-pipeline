@@ -13,6 +13,8 @@ const sampleTask: TaskDefinition = {
   timeout_seconds: 300,
   retry_count: 0,
   priority: "high",
+  pre_hook: null,
+  post_hook: null,
 };
 
 describe("TaskCard", () => {
@@ -40,5 +42,25 @@ describe("TaskCard", () => {
   it("hides dependency count when empty", () => {
     render(<TaskCard task={sampleTask} />);
     expect(screen.queryByText(/Deps:/)).toBeNull();
+  });
+
+  it("shows pre-hook when set", () => {
+    const taskWithPreHook = { ...sampleTask, pre_hook: "log" };
+    render(<TaskCard task={taskWithPreHook} />);
+    expect(screen.getByText("log")).toBeDefined();
+    expect(screen.getByText(/Pre-hook:/)).toBeDefined();
+  });
+
+  it("shows post-hook when set", () => {
+    const taskWithPostHook = { ...sampleTask, post_hook: "notify" };
+    render(<TaskCard task={taskWithPostHook} />);
+    expect(screen.getByText("notify")).toBeDefined();
+    expect(screen.getByText(/Post-hook:/)).toBeDefined();
+  });
+
+  it("hides hook labels when hooks are null", () => {
+    render(<TaskCard task={sampleTask} />);
+    expect(screen.queryByText(/Pre-hook:/)).toBeNull();
+    expect(screen.queryByText(/Post-hook:/)).toBeNull();
   });
 });
