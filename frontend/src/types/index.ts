@@ -73,3 +73,9 @@ export interface AnalyticsSummary {
     failure_rate: number;
   }>;
 }
+
+/** Structured error response returned by the backend exception handlers. */
+export interface ErrorResponse {
+  detail: string;
+  code: string;
+}

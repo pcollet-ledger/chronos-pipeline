@@ -1,4 +1,9 @@
-"""Data models for Chronos Pipeline workflow engine."""
+"""Data models for Chronos Pipeline workflow engine.
+
+Defines all Pydantic v2 models used across the API layer and service layer.
+Models are grouped into: enums, task/workflow definitions, execution records,
+request/response bodies, analytics, and error responses.
+"""
 
 from __future__ import annotations
 
@@ -139,3 +144,17 @@ class AnalyticsSummary(BaseModel):
     executions_by_status: Dict[str, int] = Field(default_factory=dict)
     recent_executions: List[WorkflowExecution] = Field(default_factory=list)
     top_failing_workflows: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ErrorResponse(BaseModel):
+    """Structured error response returned by global exception handlers.
+
+    Every error response from the API uses this shape so that clients can
+    rely on a consistent contract for programmatic error handling.
+
+    Attributes:
+        detail: Human-readable description of what went wrong.
+        code: Machine-readable error code (e.g. ``"internal_server_error"``).
+    """
+    detail: str
+    code: str

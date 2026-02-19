@@ -1,6 +1,30 @@
-import type { AnalyticsSummary, BulkDeleteResponse, Workflow, WorkflowExecution } from "../types";
+import type {
+  AnalyticsSummary,
+  BulkDeleteResponse,
+  ErrorResponse,
+  Workflow,
+  WorkflowExecution,
+} from "../types";
 
 const BASE = "/api";
+
+/**
+ * Parse a non-OK response into an Error with a descriptive message.
+ *
+ * Attempts to extract the structured `{detail, code}` body returned by
+ * the backend exception handlers.  Falls back to the raw response text
+ * when the body is not valid JSON.
+ */
+async function parseApiError(resp: Response): Promise<Error> {
+  let detail: string;
+  try {
+    const body: ErrorResponse | { detail: string } = await resp.json();
+    detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body);
+  } catch {
+    detail = await resp.text().catch(() => "Unknown error");
+  }
+  return new Error(`API error ${resp.status}: ${detail}`);
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {
@@ -8,8 +32,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`API error ${resp.status}: ${text}`);
+    throw await parseApiError(resp);
   }
   if (resp.status === 204) return undefined as T;
   return resp.json();
@@ -52,6 +75,9 @@ export const listExecutions = (status?: string) => {
 
 export const getExecution = (id: string) =>
   request<WorkflowExecution>(`/tasks/executions/${id}`);
+
+export const retryExecution = (id: string) =>
+  request<WorkflowExecution>(`/tasks/executions/${id}/retry`, { method: "POST" });
 
 // Analytics
 export const getAnalyticsSummary = (days = 30) =>

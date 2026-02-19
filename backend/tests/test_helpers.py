@@ -1,13 +1,25 @@
-"""Tests for utility helpers."""
+"""Tests for utility helpers.
 
+Covers all public functions in ``app.utils.helpers`` including the new
+``raise_not_found``, ``raise_conflict``, and ``build_error_response``
+helpers used by routes and global exception handlers.
+"""
+
+import json
 from datetime import datetime
 
+import pytest
+from fastapi import HTTPException
+
 from app.utils.helpers import (
+    build_error_response,
     clamp,
     compute_checksum,
     format_duration,
     generate_slug,
     paginate,
+    raise_conflict,
+    raise_not_found,
     safe_get,
     timestamp_to_iso,
 )
@@ -105,3 +117,137 @@ class TestClamp:
 
     def test_above_max(self):
         assert clamp(15, 0, 10) == 10
+
+
+class TestRaiseNotFound:
+    """Tests for the ``raise_not_found`` helper."""
+
+    def test_raises_http_exception(self):
+        with pytest.raises(HTTPException):
+            raise_not_found()
+
+    def test_status_code_is_404(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found()
+        assert exc_info.value.status_code == 404
+
+    def test_default_detail_message(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found()
+        assert exc_info.value.detail == "Resource not found"
+
+    def test_custom_resource_name(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found("Workflow")
+        assert exc_info.value.detail == "Workflow not found"
+
+    def test_empty_resource_name(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found("")
+        assert exc_info.value.detail == " not found"
+
+    def test_special_characters_in_resource(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found("Workflow<>")
+        assert "Workflow<>" in exc_info.value.detail
+
+    def test_long_resource_name(self):
+        long_name = "R" * 1000
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found(long_name)
+        assert long_name in exc_info.value.detail
+
+    def test_unicode_resource_name(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_not_found("ワークフロー")
+        assert "ワークフロー" in exc_info.value.detail
+
+
+class TestRaiseConflict:
+    """Tests for the ``raise_conflict`` helper."""
+
+    def test_raises_http_exception(self):
+        with pytest.raises(HTTPException):
+            raise_conflict("conflict")
+
+    def test_status_code_is_409(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict("conflict")
+        assert exc_info.value.status_code == 409
+
+    def test_detail_matches_message(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict("Only failed executions can be retried")
+        assert exc_info.value.detail == "Only failed executions can be retried"
+
+    def test_empty_message(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict("")
+        assert exc_info.value.detail == ""
+
+    def test_special_characters(self):
+        msg = 'Status is "completed" — cannot retry'
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict(msg)
+        assert exc_info.value.detail == msg
+
+    def test_long_message(self):
+        long_msg = "x" * 5000
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict(long_msg)
+        assert len(exc_info.value.detail) == 5000
+
+    def test_unicode_message(self):
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict("再試行できません")
+        assert "再試行" in exc_info.value.detail
+
+    def test_multiline_message(self):
+        msg = "line1\nline2\nline3"
+        with pytest.raises(HTTPException) as exc_info:
+            raise_conflict(msg)
+        assert "\n" in exc_info.value.detail
+
+
+class TestBuildErrorResponse:
+    """Tests for the ``build_error_response`` helper."""
+
+    def test_returns_json_response(self):
+        resp = build_error_response(500, "error", "internal_server_error")
+        assert resp.status_code == 500
+
+    def test_body_has_detail_and_code(self):
+        resp = build_error_response(400, "bad input", "bad_request")
+        body = json.loads(resp.body)
+        assert body["detail"] == "bad input"
+        assert body["code"] == "bad_request"
+
+    def test_status_code_is_set(self):
+        resp = build_error_response(403, "denied", "forbidden")
+        assert resp.status_code == 403
+
+    def test_404_response(self):
+        resp = build_error_response(404, "not found", "not_found")
+        body = json.loads(resp.body)
+        assert resp.status_code == 404
+        assert body["code"] == "not_found"
+
+    def test_content_type_is_json(self):
+        resp = build_error_response(500, "error", "internal_server_error")
+        content_type = dict(resp.headers).get("content-type", "")
+        assert "application/json" in content_type
+
+    def test_empty_detail(self):
+        resp = build_error_response(500, "", "internal_server_error")
+        body = json.loads(resp.body)
+        assert body["detail"] == ""
+
+    def test_empty_code(self):
+        resp = build_error_response(500, "error", "")
+        body = json.loads(resp.body)
+        assert body["code"] == ""
+
+    def test_body_has_exactly_two_keys(self):
+        resp = build_error_response(500, "error", "code")
+        body = json.loads(resp.body)
+        assert set(body.keys()) == {"detail", "code"}
