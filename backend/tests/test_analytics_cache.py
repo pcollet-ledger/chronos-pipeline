@@ -218,3 +218,59 @@ class TestCacheViaAPI:
         resp = client.get(f"/api/analytics/workflows/{wf_id}/stats")
         assert resp.status_code == 200
         assert resp.json()["total_executions"] == 1
+
+
+class TestCacheEdgeCases:
+    """Additional edge case tests for the analytics cache."""
+
+    def test_cache_returns_stale_data_within_ttl(self):
+        """Data created after cache fill should not appear until TTL expires."""
+        set_cache_ttl(60)
+        _create_and_execute("WF1")
+        clear_cache()
+        result1 = get_summary(days=30)
+        assert result1.total_executions == 1
+        _create_and_execute("WF2")
+        result2 = get_summary(days=30)
+        assert result2.total_executions == 1
+        assert result1 is result2
+
+    def test_different_workflow_ids_produce_different_cache_entries(self):
+        wf1_id = _create_and_execute("WF1")
+        wf2_id = _create_and_execute("WF2")
+        clear_cache()
+        stats1 = get_workflow_stats(wf1_id)
+        stats2 = get_workflow_stats(wf2_id)
+        assert stats1["workflow_id"] != stats2["workflow_id"]
+
+    def test_cache_survives_empty_state(self):
+        """Cache should work even when there are no executions."""
+        clear_cache()
+        result = get_summary(days=30)
+        assert result.total_executions == 0
+        result2 = get_summary(days=30)
+        assert result is result2
+
+    def test_set_ttl_to_zero_disables_caching(self):
+        """With TTL=0, every call should recompute."""
+        set_cache_ttl(0)
+        _create_and_execute()
+        result1 = get_summary(days=30)
+        result2 = get_summary(days=30)
+        assert result1 is not result2
+
+    def test_invalidate_is_idempotent(self):
+        """Calling invalidate_cache multiple times should not error."""
+        invalidate_cache()
+        invalidate_cache()
+        invalidate_cache()
+        result = get_summary(days=30)
+        assert result.total_executions == 0
+
+    def test_cache_key_includes_days_parameter(self):
+        """Different days parameters should produce different cache entries."""
+        _create_and_execute()
+        clear_cache()
+        r7 = get_summary(days=7)
+        r30 = get_summary(days=30)
+        assert r7 is not r30

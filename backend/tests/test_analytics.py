@@ -168,3 +168,65 @@ class TestAnalyticsEdgeCases:
         clear_cache()
         summary = client.get("/api/analytics/summary").json()
         assert len(summary["recent_executions"]) <= 10
+
+
+class TestAnalyticsWorkflowStatsEdgeCases:
+    """Additional edge case tests for workflow stats."""
+
+    def test_stats_empty_workflow_id(self, client):
+        """Stats for a workflow with no executions should return zeros."""
+        resp = client.post("/api/workflows/", json={"name": "No Execs"})
+        wf_id = resp.json()["id"]
+        clear_cache()
+        stats = client.get(f"/api/analytics/workflows/{wf_id}/stats").json()
+        assert stats["total_executions"] == 0
+        assert stats["success_rate"] == 0
+
+    def test_stats_after_failed_execution(self, client):
+        payload = {
+            "name": "Fail Stats",
+            "tasks": [{"name": "Bad", "action": "unknown_action", "parameters": {}}],
+        }
+        resp = client.post("/api/workflows/", json=payload)
+        wf_id = resp.json()["id"]
+        client.post(f"/api/workflows/{wf_id}/execute")
+        clear_cache()
+        stats = client.get(f"/api/analytics/workflows/{wf_id}/stats").json()
+        assert stats["failed"] == 1
+        assert stats["completed"] == 0
+        assert stats["success_rate"] == 0.0
+
+    def test_stats_duration_fields(self, client):
+        wf_id = _create_and_execute(client, "Duration Stats")
+        clear_cache()
+        stats = client.get(f"/api/analytics/workflows/{wf_id}/stats").json()
+        assert "avg_duration_ms" in stats
+        assert "min_duration_ms" in stats
+        assert "max_duration_ms" in stats
+        assert stats["avg_duration_ms"] >= 0
+
+    def test_summary_executions_by_status_keys(self, client):
+        _create_and_execute(client, "Status Keys")
+        clear_cache()
+        summary = client.get("/api/analytics/summary").json()
+        assert "completed" in summary["executions_by_status"]
+
+    def test_timeline_bucket_count(self, client):
+        """Timeline with 1 hour and 15-minute buckets should have ~4 buckets."""
+        _create_and_execute(client)
+        clear_cache()
+        resp = client.get("/api/analytics/timeline", params={"hours": 1, "bucket_minutes": 15})
+        data = resp.json()
+        assert len(data) >= 4
+
+    def test_summary_after_delete_reflects_fewer_workflows(self, client):
+        wf_id = _create_and_execute(client, "Delete Me")
+        _create_and_execute(client, "Keep Me")
+        clear_cache()
+        summary1 = client.get("/api/analytics/summary").json()
+        assert summary1["total_workflows"] == 2
+
+        client.delete(f"/api/workflows/{wf_id}")
+        clear_cache()
+        summary2 = client.get("/api/analytics/summary").json()
+        assert summary2["total_workflows"] == 1

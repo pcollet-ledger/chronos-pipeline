@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..models import AnalyticsSummary, WorkflowExecution, WorkflowStatus
+from ..utils.formatters import format_duration
 from . import workflow_engine
 
 # Default cache TTL in seconds
@@ -128,7 +129,7 @@ def get_summary(days: int = 30) -> AnalyticsSummary:
     failing = _top_failing_workflows(recent)
 
     result = AnalyticsSummary(
-        total_workflows=len(workflow_engine.list_workflows()),
+        total_workflows=len(workflow_engine.list_workflows(limit=100000)),
         total_executions=total,
         success_rate=round(success_rate, 2),
         avg_duration_ms=round(avg_duration, 2),
@@ -165,15 +166,22 @@ def get_workflow_stats(workflow_id: str) -> Dict[str, Any]:
             d = (ex.completed_at - ex.started_at).total_seconds() * 1000
             durations.append(d)
 
+    avg_dur = round(sum(durations) / len(durations) if durations else 0, 2)
+    min_dur = round(min(durations) if durations else 0, 2)
+    max_dur = round(max(durations) if durations else 0, 2)
+
     result = {
         "workflow_id": workflow_id,
         "total_executions": total,
         "completed": completed,
         "failed": failed,
         "success_rate": round((completed / total * 100) if total else 0, 2),
-        "avg_duration_ms": round(sum(durations) / len(durations) if durations else 0, 2),
-        "min_duration_ms": round(min(durations) if durations else 0, 2),
-        "max_duration_ms": round(max(durations) if durations else 0, 2),
+        "avg_duration_ms": avg_dur,
+        "min_duration_ms": min_dur,
+        "max_duration_ms": max_dur,
+        "avg_duration_formatted": format_duration(avg_dur),
+        "min_duration_formatted": format_duration(min_dur),
+        "max_duration_formatted": format_duration(max_dur),
     }
     _set_cached(cache_key, result)
     return result

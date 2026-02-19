@@ -244,3 +244,77 @@ class TestStressViaAPI:
             client.post(f"/api/workflows/{wf_id}/execute")
         resp = client.get("/api/tasks/executions", params={"limit": 1000})
         assert len(resp.json()) == 50
+
+
+class TestStressSearch:
+    """Stress tests for search and filtering."""
+
+    def test_search_at_scale(self):
+        for i in range(100):
+            create_workflow(WorkflowCreate(
+                name=f"Pipeline-{i}" if i % 2 == 0 else f"Job-{i}",
+            ))
+        from app.services.workflow_engine import search_workflows
+        results = search_workflows("Pipeline", limit=1000)
+        assert len(results) == 50
+
+    def test_tag_index_consistency_after_bulk_operations(self):
+        from app.services.workflow_engine import bulk_delete_workflows
+        ids = []
+        for i in range(50):
+            wf = create_workflow(WorkflowCreate(
+                name=f"WF-{i}",
+                tags=["bulk-tag"],
+            ))
+            ids.append(wf.id)
+        bulk_delete_workflows(ids[:25])
+        remaining = list_workflows(tag="bulk-tag", limit=1000)
+        assert len(remaining) == 25
+
+    def test_stress_clone_workflows(self, client):
+        wf_id = client.post("/api/workflows/", json={
+            "name": "Clone Source",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+            "tags": ["cloneable"],
+        }).json()["id"]
+        clone_ids = []
+        for _ in range(30):
+            resp = client.post(f"/api/workflows/{wf_id}/clone")
+            assert resp.status_code == 201
+            clone_ids.append(resp.json()["id"])
+        assert len(set(clone_ids)) == 30
+
+    def test_stress_version_history(self, client):
+        resp = client.post("/api/workflows/", json={"name": "Versioned"})
+        wf_id = resp.json()["id"]
+        for i in range(50):
+            client.patch(f"/api/workflows/{wf_id}", json={"name": f"V-{i}"})
+        history = client.get(f"/api/workflows/{wf_id}/history").json()
+        assert len(history) == 50
+
+    def test_stress_dry_run(self, client):
+        wf_id = client.post("/api/workflows/", json={
+            "name": "Dry Run Stress",
+            "tasks": [
+                {"name": f"T{i}", "action": "log", "parameters": {"message": "ok"}}
+                for i in range(20)
+            ],
+        }).json()["id"]
+        for _ in range(50):
+            resp = client.post(f"/api/workflows/{wf_id}/dry-run")
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "completed"
+            assert len(resp.json()["task_results"]) == 20
+
+    def test_stress_analytics_with_many_workflows(self):
+        for i in range(100):
+            wf = create_workflow(WorkflowCreate(
+                name=f"Analytics-{i}",
+                tasks=[{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+            ))
+            execute_workflow(wf.id)
+        clear_cache()
+        summary = get_summary(days=30)
+        assert summary.total_workflows == 100
+        assert summary.total_executions == 100
+        assert summary.success_rate == 100.0
