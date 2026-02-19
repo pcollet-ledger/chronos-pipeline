@@ -1,10 +1,12 @@
 import type {
   AnalyticsSummary,
   BulkDeleteResponse,
+  ExecutionComparison,
   TimelineBucket,
   Workflow,
   WorkflowCreatePayload,
   WorkflowExecution,
+  WorkflowStats,
 } from "../types";
 
 const BASE = "/api";
@@ -23,9 +25,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Workflows
-export function listWorkflows(tag?: string): Promise<Workflow[]> {
-  const params = tag ? `?tag=${encodeURIComponent(tag)}` : "";
-  return request<Workflow[]>(`/workflows/${params}`);
+export function listWorkflows(tag?: string, search?: string): Promise<Workflow[]> {
+  const params = new URLSearchParams();
+  if (tag) params.set("tag", tag);
+  if (search) params.set("search", search);
+  const qs = params.toString();
+  return request<Workflow[]>(`/workflows/${qs ? `?${qs}` : ""}`);
 }
 
 export function getWorkflow(id: string): Promise<Workflow> {
@@ -108,8 +113,8 @@ export function getAnalyticsSummary(days = 30): Promise<AnalyticsSummary> {
 
 export function getWorkflowStats(
   workflowId: string,
-): Promise<Record<string, unknown>> {
-  return request<Record<string, unknown>>(
+): Promise<WorkflowStats> {
+  return request<WorkflowStats>(
     `/analytics/workflows/${workflowId}/stats`,
   );
 }
@@ -120,5 +125,55 @@ export function getTimeline(
 ): Promise<TimelineBucket[]> {
   return request<TimelineBucket[]>(
     `/analytics/timeline?hours=${hours}&bucket_minutes=${bucketMinutes}`,
+  );
+}
+
+// Workflow extras
+export function cloneWorkflow(id: string): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/clone`, { method: "POST" });
+}
+
+export function addWorkflowTags(
+  id: string,
+  tags: string[],
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/tags`, {
+    method: "POST",
+    body: JSON.stringify({ tags }),
+  });
+}
+
+export function removeWorkflowTag(
+  id: string,
+  tag: string,
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/tags/${encodeURIComponent(tag)}`, {
+    method: "DELETE",
+  });
+}
+
+export function getWorkflowHistory(id: string): Promise<Workflow[]> {
+  return request<Workflow[]>(`/workflows/${id}/history`);
+}
+
+export function getWorkflowVersion(
+  id: string,
+  version: number,
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/history/${version}`);
+}
+
+export function dryRunWorkflow(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/workflows/${id}/dry-run`, {
+    method: "POST",
+  });
+}
+
+export function compareExecutions(
+  id1: string,
+  id2: string,
+): Promise<ExecutionComparison> {
+  return request<ExecutionComparison>(
+    `/tasks/executions/compare?ids=${encodeURIComponent(id1)},${encodeURIComponent(id2)}`,
   );
 }

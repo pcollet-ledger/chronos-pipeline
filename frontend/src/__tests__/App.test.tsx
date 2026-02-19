@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import App from "../App";
 
-// Mock the API module
 vi.mock("../services/api", () => ({
   listWorkflows: vi.fn().mockResolvedValue([]),
   getAnalyticsSummary: vi.fn().mockResolvedValue({
@@ -19,6 +18,7 @@ vi.mock("../services/api", () => ({
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("renders the header with Chronos Pipeline title", () => {
@@ -35,5 +35,18 @@ describe("App", () => {
   it("renders refresh button", () => {
     render(<App />);
     expect(screen.getByText("Refresh")).toBeDefined();
+  });
+
+  it("renders theme toggle button", () => {
+    render(<App />);
+    expect(screen.getByTestId("theme-toggle")).toBeDefined();
+  });
+
+  it("toggles theme when theme button is clicked", () => {
+    render(<App />);
+    const toggle = screen.getByTestId("theme-toggle");
+    expect(toggle.textContent).toBe("Light");
+    fireEvent.click(toggle);
+    expect(toggle.textContent).toBe("Dark");
   });
 });

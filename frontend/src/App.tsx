@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import WorkflowList from "./components/WorkflowList";
+import WorkflowDetail from "./components/WorkflowDetail";
+import ExecutionLogViewer from "./components/ExecutionLogViewer";
 import ErrorBanner from "./components/ErrorBanner";
+import ThemeToggle from "./components/ThemeToggle";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import type { AnalyticsSummary, Workflow } from "./types";
 import { getAnalyticsSummary, listWorkflows } from "./services/api";
 
-type View = "dashboard" | "workflows";
+type View =
+  | { kind: "dashboard" }
+  | { kind: "workflows" }
+  | { kind: "workflow-detail"; workflowId: string }
+  | { kind: "execution-log"; executionId: string };
 
-export default function App() {
-  const [view, setView] = useState<View>("dashboard");
+function AppContent() {
+  const { theme } = useTheme();
+  const [view, setView] = useState<View>({ kind: "dashboard" });
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,61 +44,70 @@ export default function App() {
     void refresh();
   }, []);
 
+  const p = theme.palette;
+
+  const navItems: Array<{ kind: View["kind"]; label: string }> = [
+    { kind: "dashboard", label: "dashboard" },
+    { kind: "workflows", label: "workflows" },
+  ];
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a" }}>
+    <div style={{ minHeight: "100vh", background: p.background }}>
       <header
         style={{
-          padding: "16px 32px",
-          borderBottom: "1px solid #1e293b",
+          padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+          borderBottom: `1px solid ${p.border}`,
           display: "flex",
           alignItems: "center",
-          gap: "24px",
+          gap: theme.spacing.lg,
         }}
       >
-        <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#38bdf8" }}>
+        <h1 style={{ fontSize: theme.fontSize.xxl, fontWeight: theme.fontWeight.bold, color: theme.colors.info }}>
           Chronos Pipeline
         </h1>
-        <nav style={{ display: "flex", gap: "12px" }}>
-          {(["dashboard", "workflows"] as const).map((v) => (
+        <nav style={{ display: "flex", gap: theme.spacing.sm }}>
+          {navItems.map((item) => (
             <button
-              key={v}
-              onClick={() => setView(v)}
+              key={item.kind}
+              onClick={() => setView({ kind: item.kind } as View)}
               style={{
-                padding: "6px 16px",
-                borderRadius: "6px",
+                padding: `6px ${theme.spacing.md}`,
+                borderRadius: theme.borderRadius.md,
                 border: "none",
                 cursor: "pointer",
-                background: view === v ? "#1e40af" : "transparent",
-                color: view === v ? "#fff" : "#94a3b8",
-                fontWeight: view === v ? 600 : 400,
-                fontSize: "14px",
+                background: view.kind === item.kind ? theme.colors.primaryDark : "transparent",
+                color: view.kind === item.kind ? "#fff" : p.textSecondary,
+                fontWeight: view.kind === item.kind ? theme.fontWeight.semibold : theme.fontWeight.normal,
+                fontSize: theme.fontSize.base,
                 textTransform: "capitalize",
               }}
             >
-              {v}
+              {item.label}
             </button>
           ))}
         </nav>
-        <button
-          onClick={() => void refresh()}
-          style={{
-            marginLeft: "auto",
-            padding: "6px 16px",
-            borderRadius: "6px",
-            border: "1px solid #334155",
-            background: "transparent",
-            color: "#94a3b8",
-            cursor: "pointer",
-            fontSize: "13px",
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
+          <ThemeToggle />
+          <button
+            onClick={() => void refresh()}
+            style={{
+              padding: `6px ${theme.spacing.md}`,
+              borderRadius: theme.borderRadius.md,
+              border: `1px solid ${p.border}`,
+              background: "transparent",
+              color: p.textSecondary,
+              cursor: "pointer",
+              fontSize: theme.fontSize.md,
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </header>
 
       <main
         style={{
-          padding: "24px 32px",
+          padding: `${theme.spacing.lg} ${theme.spacing.xl}`,
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -102,17 +120,39 @@ export default function App() {
           />
         )}
 
-        {view === "dashboard" && (
+        {view.kind === "dashboard" && (
           <Dashboard analytics={analytics} loading={loading} />
         )}
-        {view === "workflows" && (
+        {view.kind === "workflows" && (
           <WorkflowList
             workflows={workflows}
             onRefresh={() => void refresh()}
             loading={loading}
+            onSelectWorkflow={(id) => setView({ kind: "workflow-detail", workflowId: id })}
+          />
+        )}
+        {view.kind === "workflow-detail" && (
+          <WorkflowDetail
+            workflowId={view.workflowId}
+            onBack={() => setView({ kind: "workflows" })}
+            onRefresh={() => void refresh()}
+          />
+        )}
+        {view.kind === "execution-log" && (
+          <ExecutionLogViewer
+            executionId={view.executionId}
+            onBack={() => setView({ kind: "workflows" })}
           />
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
