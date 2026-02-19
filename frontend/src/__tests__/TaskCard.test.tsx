@@ -63,4 +63,53 @@ describe("TaskCard", () => {
     expect(screen.queryByText(/Pre-hook:/)).toBeNull();
     expect(screen.queryByText(/Post-hook:/)).toBeNull();
   });
+
+  it("renders with low priority", () => {
+    const lowTask = { ...sampleTask, priority: "low" as const };
+    render(<TaskCard task={lowTask} />);
+    expect(screen.getByText("low")).toBeDefined();
+  });
+
+  it("renders with critical priority", () => {
+    const criticalTask = { ...sampleTask, priority: "critical" as const };
+    render(<TaskCard task={criticalTask} />);
+    expect(screen.getByText("critical")).toBeDefined();
+  });
+
+  it("renders with medium priority", () => {
+    const medTask = { ...sampleTask, priority: "medium" as const };
+    render(<TaskCard task={medTask} />);
+    expect(screen.getByText("medium")).toBeDefined();
+  });
+
+  it("renders with both hooks set", () => {
+    const taskBothHooks = { ...sampleTask, pre_hook: "validate", post_hook: "notify" };
+    render(<TaskCard task={taskBothHooks} />);
+    expect(screen.getByText(/Pre-hook:/)).toBeDefined();
+    expect(screen.getByText(/Post-hook:/)).toBeDefined();
+  });
+
+  it("handles task with empty description", () => {
+    const taskNoDesc = { ...sampleTask, description: "" };
+    render(<TaskCard task={taskNoDesc} />);
+    expect(screen.getByText("Validate Input")).toBeDefined();
+  });
+
+  it("handles task with many dependencies", () => {
+    const taskManyDeps = { ...sampleTask, depends_on: ["a", "b", "c", "d", "e"] };
+    render(<TaskCard task={taskManyDeps} />);
+    expect(screen.getByText("Deps: 5")).toBeDefined();
+  });
+
+  it("renders with empty parameters", () => {
+    const taskNoParams = { ...sampleTask, parameters: {} };
+    render(<TaskCard task={taskNoParams} />);
+    expect(screen.getByText("Validate Input")).toBeDefined();
+  });
+
+  it("renders with single dependency", () => {
+    const taskOneDep = { ...sampleTask, depends_on: ["dep-1"] };
+    render(<TaskCard task={taskOneDep} />);
+    expect(screen.getByText("Deps: 1")).toBeDefined();
+  });
 });

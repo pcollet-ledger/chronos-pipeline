@@ -1,10 +1,21 @@
 import type { AnalyticsSummary } from "../types";
+import LoadingSpinner from "./LoadingSpinner";
+import EmptyState from "./EmptyState";
 
 interface Props {
   analytics: AnalyticsSummary | null;
+  loading?: boolean;
 }
 
-function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  color: string;
+}) {
   return (
     <div
       style={{
@@ -23,13 +34,13 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
   );
 }
 
-export default function Dashboard({ analytics }: Props) {
+export default function Dashboard({ analytics, loading }: Props) {
+  if (loading) {
+    return <LoadingSpinner label="Loading analytics..." />;
+  }
+
   if (!analytics) {
-    return (
-      <div style={{ color: "#64748b", padding: "40px", textAlign: "center" }}>
-        Loading analytics...
-      </div>
-    );
+    return <EmptyState message="No analytics data available yet." />;
   }
 
   const statusColors: Record<string, string> = {
@@ -42,14 +53,30 @@ export default function Dashboard({ analytics }: Props) {
 
   return (
     <div>
-      <h2 style={{ fontSize: "18px", marginBottom: "20px", color: "#e2e8f0" }}>
+      <h2
+        style={{ fontSize: "18px", marginBottom: "20px", color: "#e2e8f0" }}
+      >
         Dashboard
       </h2>
 
-      {/* Stat cards */}
-      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "32px" }}>
-        <StatCard label="Pipelines" value={analytics.total_workflows} color="#38bdf8" />
-        <StatCard label="Executions" value={analytics.total_executions} color="#a78bfa" />
+      <div
+        style={{
+          display: "flex",
+          gap: "16px",
+          flexWrap: "wrap",
+          marginBottom: "32px",
+        }}
+      >
+        <StatCard
+          label="Pipelines"
+          value={analytics.total_workflows}
+          color="#38bdf8"
+        />
+        <StatCard
+          label="Executions"
+          value={analytics.total_executions}
+          color="#a78bfa"
+        />
         <StatCard
           label="Success Rate"
           value={`${analytics.success_rate}%`}
@@ -62,37 +89,77 @@ export default function Dashboard({ analytics }: Props) {
         />
       </div>
 
-      {/* Status breakdown */}
-      <div style={{ background: "#1e293b", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
-        <h3 style={{ fontSize: "14px", color: "#94a3b8", marginBottom: "16px" }}>
+      <div
+        style={{
+          background: "#1e293b",
+          borderRadius: "12px",
+          padding: "20px",
+          marginBottom: "24px",
+        }}
+      >
+        <h3
+          style={{
+            fontSize: "14px",
+            color: "#94a3b8",
+            marginBottom: "16px",
+          }}
+        >
           Executions by Status
         </h3>
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
-          {Object.entries(analytics.executions_by_status).map(([status, count]) => (
-            <div key={status} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {Object.entries(analytics.executions_by_status).map(
+            ([status, count]) => (
               <div
+                key={status}
                 style={{
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "50%",
-                  background: statusColors[status] || "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
                 }}
-              />
-              <span style={{ fontSize: "14px", color: "#cbd5e1", textTransform: "capitalize" }}>
-                {status}: <strong>{count}</strong>
-              </span>
-            </div>
-          ))}
+              >
+                <div
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "50%",
+                    background: statusColors[status] ?? "#64748b",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "14px",
+                    color: "#cbd5e1",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {status}: <strong>{count}</strong>
+                </span>
+              </div>
+            ),
+          )}
         </div>
       </div>
 
-      {/* Recent executions */}
-      <div style={{ background: "#1e293b", borderRadius: "12px", padding: "20px" }}>
-        <h3 style={{ fontSize: "14px", color: "#94a3b8", marginBottom: "16px" }}>
+      <div
+        style={{
+          background: "#1e293b",
+          borderRadius: "12px",
+          padding: "20px",
+        }}
+      >
+        <h3
+          style={{
+            fontSize: "14px",
+            color: "#94a3b8",
+            marginBottom: "16px",
+          }}
+        >
           Recent Executions
         </h3>
         {analytics.recent_executions.length === 0 ? (
-          <div style={{ color: "#475569", fontSize: "14px" }}>No executions yet</div>
+          <div style={{ color: "#475569", fontSize: "14px" }}>
+            No executions yet
+          </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
@@ -105,12 +172,15 @@ export default function Dashboard({ analytics }: Props) {
             </thead>
             <tbody>
               {analytics.recent_executions.map((ex) => (
-                <tr key={ex.id} style={{ borderBottom: "1px solid #1e293b" }}>
+                <tr
+                  key={ex.id}
+                  style={{ borderBottom: "1px solid #1e293b" }}
+                >
                   <td style={tdStyle}>{ex.id.slice(0, 8)}...</td>
                   <td style={tdStyle}>
                     <span
                       style={{
-                        color: statusColors[ex.status] || "#64748b",
+                        color: statusColors[ex.status] ?? "#64748b",
                         fontWeight: 600,
                         textTransform: "capitalize",
                       }}
@@ -120,7 +190,9 @@ export default function Dashboard({ analytics }: Props) {
                   </td>
                   <td style={tdStyle}>{ex.trigger}</td>
                   <td style={tdStyle}>
-                    {ex.started_at ? new Date(ex.started_at).toLocaleString() : "—"}
+                    {ex.started_at
+                      ? new Date(ex.started_at).toLocaleString()
+                      : "—"}
                   </td>
                 </tr>
               ))}

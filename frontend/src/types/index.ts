@@ -1,3 +1,14 @@
+export type TaskPriority = "low" | "medium" | "high" | "critical";
+
+export type WorkflowStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type ValidAction = "log" | "transform" | "validate" | "notify" | "aggregate";
+
 export interface TaskDefinition {
   id: string;
   name: string;
@@ -7,10 +18,8 @@ export interface TaskDefinition {
   depends_on: string[];
   timeout_seconds: number;
   retry_count: number;
-  priority: "low" | "medium" | "high" | "critical";
-  /** Action name executed before the main action. `null` means no pre-hook. */
+  priority: TaskPriority;
   pre_hook: string | null;
-  /** Action name executed after the main action. `null` means no post-hook. */
   post_hook: string | null;
 }
 
@@ -24,13 +33,6 @@ export interface TaskResult {
   duration_ms: number | null;
 }
 
-export type WorkflowStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
-
 export interface Workflow {
   id: string;
   name: string;
@@ -42,14 +44,24 @@ export interface Workflow {
   updated_at: string;
 }
 
+export interface WorkflowCreatePayload {
+  name: string;
+  description?: string;
+  tasks?: Array<Partial<TaskDefinition> & { name: string; action: string }>;
+  schedule?: string | null;
+  tags?: string[];
+}
+
 export interface WorkflowExecution {
   id: string;
   workflow_id: string;
   status: WorkflowStatus;
   started_at: string | null;
   completed_at: string | null;
+  cancelled_at: string | null;
   task_results: TaskResult[];
   trigger: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface BulkDeleteResponse {
@@ -72,4 +84,11 @@ export interface AnalyticsSummary {
     total: number;
     failure_rate: number;
   }>;
+}
+
+export interface TimelineBucket {
+  time: string;
+  total: number;
+  completed: number;
+  failed: number;
 }

@@ -138,3 +138,30 @@ class TestExecuteWorkflow:
         wf_id = create_resp.json()["id"]
         resp = client.post(f"/api/workflows/{wf_id}/execute")
         assert resp.json()["status"] == "failed"
+
+    def test_execute_empty_workflow(self, client):
+        resp = client.post("/api/workflows/", json={"name": "Empty"})
+        wf_id = resp.json()["id"]
+        exec_resp = client.post(f"/api/workflows/{wf_id}/execute")
+        assert exec_resp.json()["status"] == "completed"
+        assert exec_resp.json()["task_results"] == []
+
+    def test_execute_with_trigger(self, client):
+        resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = resp.json()["id"]
+        exec_resp = client.post(f"/api/workflows/{wf_id}/execute", params={"trigger": "cron"})
+        assert exec_resp.json()["trigger"] == "cron"
+
+
+class TestWorkflowListPagination:
+    def test_limit_parameter(self, client):
+        for i in range(5):
+            client.post("/api/workflows/", json=_sample_workflow_payload(f"WF-{i}"))
+        resp = client.get("/api/workflows/", params={"limit": 2})
+        assert len(resp.json()) == 2
+
+    def test_offset_parameter(self, client):
+        for i in range(5):
+            client.post("/api/workflows/", json=_sample_workflow_payload(f"WF-{i}"))
+        resp = client.get("/api/workflows/", params={"offset": 3, "limit": 10})
+        assert len(resp.json()) == 2

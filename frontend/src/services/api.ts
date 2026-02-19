@@ -1,4 +1,11 @@
-import type { AnalyticsSummary, BulkDeleteResponse, Workflow, WorkflowExecution } from "../types";
+import type {
+  AnalyticsSummary,
+  BulkDeleteResponse,
+  TimelineBucket,
+  Workflow,
+  WorkflowCreatePayload,
+  WorkflowExecution,
+} from "../types";
 
 const BASE = "/api";
 
@@ -12,52 +19,106 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(`API error ${resp.status}: ${text}`);
   }
   if (resp.status === 204) return undefined as T;
-  return resp.json();
+  return resp.json() as Promise<T>;
 }
 
 // Workflows
-export const listWorkflows = () => request<Workflow[]>("/workflows/");
+export function listWorkflows(tag?: string): Promise<Workflow[]> {
+  const params = tag ? `?tag=${encodeURIComponent(tag)}` : "";
+  return request<Workflow[]>(`/workflows/${params}`);
+}
 
-export const getWorkflow = (id: string) => request<Workflow>(`/workflows/${id}`);
+export function getWorkflow(id: string): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}`);
+}
 
-export const createWorkflow = (data: Partial<Workflow>) =>
-  request<Workflow>("/workflows/", {
+export function createWorkflow(data: WorkflowCreatePayload): Promise<Workflow> {
+  return request<Workflow>("/workflows/", {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
 
-export const updateWorkflow = (id: string, data: Partial<Workflow>) =>
-  request<Workflow>(`/workflows/${id}`, {
+export function updateWorkflow(
+  id: string,
+  data: Partial<Workflow>,
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
 
-export const deleteWorkflow = (id: string) =>
-  request<void>(`/workflows/${id}`, { method: "DELETE" });
+export function deleteWorkflow(id: string): Promise<void> {
+  return request<void>(`/workflows/${id}`, { method: "DELETE" });
+}
 
-export const bulkDeleteWorkflows = (ids: string[]) =>
-  request<BulkDeleteResponse>("/workflows/bulk-delete", {
+export function bulkDeleteWorkflows(ids: string[]): Promise<BulkDeleteResponse> {
+  return request<BulkDeleteResponse>("/workflows/bulk-delete", {
     method: "POST",
     body: JSON.stringify({ ids }),
   });
+}
 
-export const executeWorkflow = (id: string) =>
-  request<WorkflowExecution>(`/workflows/${id}/execute`, { method: "POST" });
+export function executeWorkflow(
+  id: string,
+  trigger = "manual",
+): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(
+    `/workflows/${id}/execute?trigger=${encodeURIComponent(trigger)}`,
+    { method: "POST" },
+  );
+}
+
+export function listWorkflowExecutions(
+  workflowId: string,
+  limit = 50,
+): Promise<WorkflowExecution[]> {
+  return request<WorkflowExecution[]>(
+    `/workflows/${workflowId}/executions?limit=${limit}`,
+  );
+}
 
 // Executions
-export const listExecutions = (status?: string) => {
-  const params = status ? `?status=${status}` : "";
+export function listExecutions(status?: string): Promise<WorkflowExecution[]> {
+  const params = status ? `?status=${encodeURIComponent(status)}` : "";
   return request<WorkflowExecution[]>(`/tasks/executions${params}`);
-};
+}
 
-export const getExecution = (id: string) =>
-  request<WorkflowExecution>(`/tasks/executions/${id}`);
+export function getExecution(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/tasks/executions/${id}`);
+}
+
+export function retryExecution(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/tasks/executions/${id}/retry`, {
+    method: "POST",
+  });
+}
+
+export function cancelExecution(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/tasks/executions/${id}/cancel`, {
+    method: "POST",
+  });
+}
 
 // Analytics
-export const getAnalyticsSummary = (days = 30) =>
-  request<AnalyticsSummary>(`/analytics/summary?days=${days}`);
+export function getAnalyticsSummary(days = 30): Promise<AnalyticsSummary> {
+  return request<AnalyticsSummary>(`/analytics/summary?days=${days}`);
+}
 
-export const getTimeline = (hours = 24, bucketMinutes = 60) =>
-  request<Array<{ time: string; total: number; completed: number; failed: number }>>(
-    `/analytics/timeline?hours=${hours}&bucket_minutes=${bucketMinutes}`
+export function getWorkflowStats(
+  workflowId: string,
+): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(
+    `/analytics/workflows/${workflowId}/stats`,
   );
+}
+
+export function getTimeline(
+  hours = 24,
+  bucketMinutes = 60,
+): Promise<TimelineBucket[]> {
+  return request<TimelineBucket[]>(
+    `/analytics/timeline?hours=${hours}&bucket_minutes=${bucketMinutes}`,
+  );
+}
