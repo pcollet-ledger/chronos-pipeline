@@ -1,7 +1,17 @@
-import type { AnalyticsSummary, BulkDeleteResponse, Workflow, WorkflowExecution } from "../types";
+import type {
+  AnalyticsSummary,
+  BulkDeleteResponse,
+  Workflow,
+  WorkflowExecution,
+  WorkflowFormData,
+} from "../types";
 
 const BASE = "/api";
 
+/**
+ * Generic fetch wrapper that handles JSON serialisation, error mapping, and
+ * 204 No Content responses.
+ */
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -15,49 +25,65 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return resp.json();
 }
 
-// Workflows
-export const listWorkflows = () => request<Workflow[]>("/workflows/");
+// ---- Workflows ------------------------------------------------------------
 
-export const getWorkflow = (id: string) => request<Workflow>(`/workflows/${id}`);
+export const listWorkflows = (): Promise<Workflow[]> =>
+  request<Workflow[]>("/workflows/");
 
-export const createWorkflow = (data: Partial<Workflow>) =>
+export const getWorkflow = (id: string): Promise<Workflow> =>
+  request<Workflow>(`/workflows/${id}`);
+
+export const createWorkflow = (data: Partial<Workflow> | WorkflowFormData): Promise<Workflow> =>
   request<Workflow>("/workflows/", {
     method: "POST",
     body: JSON.stringify(data),
   });
 
-export const updateWorkflow = (id: string, data: Partial<Workflow>) =>
+export const updateWorkflow = (
+  id: string,
+  data: Partial<Workflow> | WorkflowFormData,
+): Promise<Workflow> =>
   request<Workflow>(`/workflows/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
 
-export const deleteWorkflow = (id: string) =>
+export const deleteWorkflow = (id: string): Promise<void> =>
   request<void>(`/workflows/${id}`, { method: "DELETE" });
 
-export const bulkDeleteWorkflows = (ids: string[]) =>
+export const bulkDeleteWorkflows = (ids: string[]): Promise<BulkDeleteResponse> =>
   request<BulkDeleteResponse>("/workflows/bulk-delete", {
     method: "POST",
     body: JSON.stringify({ ids }),
   });
 
-export const executeWorkflow = (id: string) =>
+export const executeWorkflow = (id: string): Promise<WorkflowExecution> =>
   request<WorkflowExecution>(`/workflows/${id}/execute`, { method: "POST" });
 
-// Executions
-export const listExecutions = (status?: string) => {
+// ---- Executions -----------------------------------------------------------
+
+export const listExecutions = (status?: string): Promise<WorkflowExecution[]> => {
   const params = status ? `?status=${status}` : "";
   return request<WorkflowExecution[]>(`/tasks/executions${params}`);
 };
 
-export const getExecution = (id: string) =>
+export const getExecution = (id: string): Promise<WorkflowExecution> =>
   request<WorkflowExecution>(`/tasks/executions/${id}`);
 
-// Analytics
-export const getAnalyticsSummary = (days = 30) =>
+export const retryExecution = (id: string): Promise<WorkflowExecution> =>
+  request<WorkflowExecution>(`/tasks/executions/${id}/retry`, {
+    method: "POST",
+  });
+
+// ---- Analytics ------------------------------------------------------------
+
+export const getAnalyticsSummary = (days = 30): Promise<AnalyticsSummary> =>
   request<AnalyticsSummary>(`/analytics/summary?days=${days}`);
 
-export const getTimeline = (hours = 24, bucketMinutes = 60) =>
+export const getTimeline = (
+  hours = 24,
+  bucketMinutes = 60,
+): Promise<Array<{ time: string; total: number; completed: number; failed: number }>> =>
   request<Array<{ time: string; total: number; completed: number; failed: number }>>(
-    `/analytics/timeline?hours=${hours}&bucket_minutes=${bucketMinutes}`
+    `/analytics/timeline?hours=${hours}&bucket_minutes=${bucketMinutes}`,
   );
