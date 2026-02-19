@@ -8,6 +8,10 @@ export interface TaskDefinition {
   timeout_seconds: number;
   retry_count: number;
   priority: "low" | "medium" | "high" | "critical";
+  /** Action name executed before the main action. `null` means no pre-hook. */
+  pre_hook: string | null;
+  /** Action name executed after the main action. `null` means no post-hook. */
+  post_hook: string | null;
 }
 
 export interface TaskResult {

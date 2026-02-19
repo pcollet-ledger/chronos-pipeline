@@ -28,7 +28,15 @@ class TaskPriority(str, Enum):
 
 
 class TaskDefinition(BaseModel):
-    """Definition of a single task within a workflow."""
+    """Definition of a single task within a workflow.
+
+    Hooks allow lightweight actions to run around the main action:
+    - ``pre_hook``: action name executed *before* the main action.
+    - ``post_hook``: action name executed *after* the main action.
+
+    If a hook is ``None`` it is simply skipped.  Hook actions use the same
+    action registry and receive the task's ``parameters``.
+    """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: str = ""
@@ -38,6 +46,8 @@ class TaskDefinition(BaseModel):
     timeout_seconds: int = 300
     retry_count: int = 0
     priority: TaskPriority = TaskPriority.MEDIUM
+    pre_hook: Optional[str] = None
+    post_hook: Optional[str] = None
 
 
 class TaskResult(BaseModel):

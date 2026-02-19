@@ -236,11 +236,51 @@ def _topological_sort(tasks: List[TaskDefinition]) -> List[TaskDefinition]:
     return order
 
 
+def _run_hook(hook_name: str, parameters: Dict[str, Any]) -> ActionOutput:
+    """Execute a single hook action.
+
+    Hooks share the same action registry as regular task actions.  This
+    thin wrapper exists so that callers can distinguish hook failures from
+    main-action failures in error messages and logging.
+
+    Raises whatever ``_run_action`` raises (typically ``ValueError`` for
+    unknown action names).
+    """
+    return _run_action(hook_name, parameters)
+
+
 def _execute_task(task: TaskDefinition) -> TaskResult:
-    """Execute a single task and return its result."""
+    """Execute a single task, including optional pre/post hooks.
+
+    Execution order:
+      1. Run ``pre_hook`` (if set).  A failure here aborts the task
+         immediately — the main action and post_hook are **not** executed.
+      2. Run the main ``action``.
+      3. Run ``post_hook`` (if set).  A failure here marks the whole task
+         as failed even though the main action succeeded.
+
+    Hook outputs are stored in the result's ``output`` dict under the
+    ``"pre_hook_output"`` and ``"post_hook_output"`` keys so that
+    downstream consumers can inspect them.
+    """
     started = datetime.utcnow()
     try:
-        output = _run_action(task.action, task.parameters)
+        combined_output: Dict[str, Any] = {}
+
+        # --- pre-hook -------------------------------------------------------
+        if task.pre_hook is not None:
+            pre_result = _run_hook(task.pre_hook, task.parameters)
+            combined_output["pre_hook_output"] = dict(pre_result)
+
+        # --- main action ----------------------------------------------------
+        main_result = _run_action(task.action, task.parameters)
+        combined_output.update(main_result)
+
+        # --- post-hook ------------------------------------------------------
+        if task.post_hook is not None:
+            post_result = _run_hook(task.post_hook, task.parameters)
+            combined_output["post_hook_output"] = dict(post_result)
+
         completed = datetime.utcnow()
         duration = int((completed - started).total_seconds() * 1000)
         return TaskResult(
@@ -248,7 +288,7 @@ def _execute_task(task: TaskDefinition) -> TaskResult:
             status=WorkflowStatus.COMPLETED,
             started_at=started,
             completed_at=completed,
-            output=output,
+            output=combined_output,
             duration_ms=duration,
         )
     except Exception as exc:
