@@ -1,24 +1,48 @@
 import type { AnalyticsSummary } from "../types";
+import {
+  colors,
+  fontSizes,
+  fontWeights,
+  radii,
+  spacing,
+  statusColors,
+} from "../styles/theme";
 
 interface Props {
   analytics: AnalyticsSummary | null;
 }
 
-function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  color: string;
+}) {
   return (
     <div
       style={{
-        background: "#1e293b",
-        borderRadius: "12px",
-        padding: "20px",
+        background: colors.neutral[800],
+        borderRadius: radii.xl,
+        padding: spacing.xl,
         minWidth: "200px",
         flex: 1,
       }}
     >
-      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px" }}>
+      <div
+        style={{
+          fontSize: fontSizes.md,
+          color: colors.neutral[500],
+          marginBottom: spacing.sm,
+        }}
+      >
         {label}
       </div>
-      <div style={{ fontSize: "28px", fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontSize: fontSizes.xxxl, fontWeight: fontWeights.bold, color }}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -26,77 +50,138 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
 export default function Dashboard({ analytics }: Props) {
   if (!analytics) {
     return (
-      <div style={{ color: "#64748b", padding: "40px", textAlign: "center" }}>
+      <div
+        style={{
+          color: colors.neutral[500],
+          padding: spacing.xxxxl,
+          textAlign: "center",
+        }}
+      >
         Loading analytics...
       </div>
     );
   }
 
-  const statusColors: Record<string, string> = {
-    completed: "#22c55e",
-    failed: "#ef4444",
-    running: "#eab308",
-    pending: "#64748b",
-    cancelled: "#6b7280",
-  };
-
   return (
     <div>
-      <h2 style={{ fontSize: "18px", marginBottom: "20px", color: "#e2e8f0" }}>
+      <h2
+        style={{
+          fontSize: fontSizes.xl,
+          marginBottom: spacing.xl,
+          color: colors.neutral[200],
+        }}
+      >
         Dashboard
       </h2>
 
       {/* Stat cards */}
-      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "32px" }}>
-        <StatCard label="Pipelines" value={analytics.total_workflows} color="#38bdf8" />
-        <StatCard label="Executions" value={analytics.total_executions} color="#a78bfa" />
+      <div
+        style={{
+          display: "flex",
+          gap: spacing.lg,
+          flexWrap: "wrap",
+          marginBottom: spacing.xxxl,
+        }}
+      >
+        <StatCard
+          label="Pipelines"
+          value={analytics.total_workflows}
+          color={colors.info.main}
+        />
+        <StatCard
+          label="Executions"
+          value={analytics.total_executions}
+          color={colors.secondary.main}
+        />
         <StatCard
           label="Success Rate"
           value={`${analytics.success_rate}%`}
-          color={analytics.success_rate >= 90 ? "#22c55e" : "#eab308"}
+          color={analytics.success_rate >= 90 ? colors.success.main : colors.warning.main}
         />
         <StatCard
           label="Avg Duration"
           value={formatDuration(analytics.avg_duration_ms)}
-          color="#f472b6"
+          color={colors.pink}
         />
       </div>
 
       {/* Status breakdown */}
-      <div style={{ background: "#1e293b", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
-        <h3 style={{ fontSize: "14px", color: "#94a3b8", marginBottom: "16px" }}>
+      <div
+        style={{
+          background: colors.neutral[800],
+          borderRadius: radii.xl,
+          padding: spacing.xl,
+          marginBottom: spacing.xxl,
+        }}
+      >
+        <h3
+          style={{
+            fontSize: fontSizes.base,
+            color: colors.neutral[400],
+            marginBottom: spacing.lg,
+          }}
+        >
           Executions by Status
         </h3>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
-          {Object.entries(analytics.executions_by_status).map(([status, count]) => (
-            <div key={status} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: "flex", gap: spacing.xxl, flexWrap: "wrap" }}>
+          {Object.entries(analytics.executions_by_status).map(
+            ([status, count]) => (
               <div
+                key={status}
                 style={{
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "50%",
-                  background: statusColors[status] || "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: spacing.sm,
                 }}
-              />
-              <span style={{ fontSize: "14px", color: "#cbd5e1", textTransform: "capitalize" }}>
-                {status}: <strong>{count}</strong>
-              </span>
-            </div>
-          ))}
+              >
+                <div
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: radii.full,
+                    background: statusColors[status] || colors.neutral[500],
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: fontSizes.base,
+                    color: colors.neutral[300],
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {status}: <strong>{count}</strong>
+                </span>
+              </div>
+            ),
+          )}
         </div>
       </div>
 
       {/* Recent executions */}
-      <div style={{ background: "#1e293b", borderRadius: "12px", padding: "20px" }}>
-        <h3 style={{ fontSize: "14px", color: "#94a3b8", marginBottom: "16px" }}>
+      <div
+        style={{
+          background: colors.neutral[800],
+          borderRadius: radii.xl,
+          padding: spacing.xl,
+        }}
+      >
+        <h3
+          style={{
+            fontSize: fontSizes.base,
+            color: colors.neutral[400],
+            marginBottom: spacing.lg,
+          }}
+        >
           Recent Executions
         </h3>
         {analytics.recent_executions.length === 0 ? (
-          <div style={{ color: "#475569", fontSize: "14px" }}>No executions yet</div>
+          <div style={{ color: colors.neutral[600], fontSize: fontSizes.base }}>
+            No executions yet
+          </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #334155" }}>
+              <tr style={{ borderBottom: `1px solid ${colors.neutral[700]}` }}>
                 <th style={thStyle}>ID</th>
                 <th style={thStyle}>Status</th>
                 <th style={thStyle}>Trigger</th>
@@ -105,13 +190,16 @@ export default function Dashboard({ analytics }: Props) {
             </thead>
             <tbody>
               {analytics.recent_executions.map((ex) => (
-                <tr key={ex.id} style={{ borderBottom: "1px solid #1e293b" }}>
+                <tr
+                  key={ex.id}
+                  style={{ borderBottom: `1px solid ${colors.neutral[800]}` }}
+                >
                   <td style={tdStyle}>{ex.id.slice(0, 8)}...</td>
                   <td style={tdStyle}>
                     <span
                       style={{
-                        color: statusColors[ex.status] || "#64748b",
-                        fontWeight: 600,
+                        color: statusColors[ex.status] || colors.neutral[500],
+                        fontWeight: fontWeights.semibold,
                         textTransform: "capitalize",
                       }}
                     >
@@ -120,7 +208,9 @@ export default function Dashboard({ analytics }: Props) {
                   </td>
                   <td style={tdStyle}>{ex.trigger}</td>
                   <td style={tdStyle}>
-                    {ex.started_at ? new Date(ex.started_at).toLocaleString() : "—"}
+                    {ex.started_at
+                      ? new Date(ex.started_at).toLocaleString()
+                      : "\u2014"}
                   </td>
                 </tr>
               ))}
@@ -134,17 +224,17 @@ export default function Dashboard({ analytics }: Props) {
 
 const thStyle: React.CSSProperties = {
   textAlign: "left",
-  padding: "8px 12px",
-  fontSize: "12px",
-  color: "#64748b",
-  fontWeight: 600,
+  padding: `${spacing.sm} ${spacing.md}`,
+  fontSize: fontSizes.sm,
+  color: colors.neutral[500],
+  fontWeight: fontWeights.semibold,
   textTransform: "uppercase",
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  fontSize: "14px",
-  color: "#cbd5e1",
+  padding: `10px ${spacing.md}`,
+  fontSize: fontSizes.base,
+  color: colors.neutral[300],
 };
 
 function formatDuration(ms: number): string {

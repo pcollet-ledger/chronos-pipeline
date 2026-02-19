@@ -3,6 +3,13 @@ import Dashboard from "./components/Dashboard";
 import WorkflowList from "./components/WorkflowList";
 import type { AnalyticsSummary, Workflow } from "./types";
 import { getAnalyticsSummary, listWorkflows } from "./services/api";
+import {
+  colors,
+  fontSizes,
+  fontWeights,
+  radii,
+  spacing,
+} from "./styles/theme";
 
 type View = "dashboard" | "workflows";
 
@@ -31,34 +38,40 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a" }}>
+    <div style={{ minHeight: "100vh", background: colors.neutral[900] }}>
       {/* Header */}
       <header
         style={{
-          padding: "16px 32px",
-          borderBottom: "1px solid #1e293b",
+          padding: `${spacing.lg} ${spacing.xxxl}`,
+          borderBottom: `1px solid ${colors.neutral[800]}`,
           display: "flex",
           alignItems: "center",
-          gap: "24px",
+          gap: spacing.xxl,
         }}
       >
-        <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#38bdf8" }}>
+        <h1
+          style={{
+            fontSize: fontSizes.xxl,
+            fontWeight: fontWeights.bold,
+            color: colors.info.main,
+          }}
+        >
           Chronos Pipeline
         </h1>
-        <nav style={{ display: "flex", gap: "12px" }}>
+        <nav style={{ display: "flex", gap: spacing.md }}>
           {(["dashboard", "workflows"] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               style={{
-                padding: "6px 16px",
-                borderRadius: "6px",
+                padding: `6px ${spacing.lg}`,
+                borderRadius: radii.md,
                 border: "none",
                 cursor: "pointer",
-                background: view === v ? "#1e40af" : "transparent",
-                color: view === v ? "#fff" : "#94a3b8",
-                fontWeight: view === v ? 600 : 400,
-                fontSize: "14px",
+                background: view === v ? colors.primary.dark : "transparent",
+                color: view === v ? "#fff" : colors.neutral[400],
+                fontWeight: view === v ? fontWeights.semibold : fontWeights.normal,
+                fontSize: fontSizes.base,
                 textTransform: "capitalize",
               }}
             >
@@ -70,13 +83,13 @@ export default function App() {
           onClick={refresh}
           style={{
             marginLeft: "auto",
-            padding: "6px 16px",
-            borderRadius: "6px",
-            border: "1px solid #334155",
+            padding: `6px ${spacing.lg}`,
+            borderRadius: radii.md,
+            border: `1px solid ${colors.neutral[700]}`,
             background: "transparent",
-            color: "#94a3b8",
+            color: colors.neutral[400],
             cursor: "pointer",
-            fontSize: "13px",
+            fontSize: fontSizes.md,
           }}
         >
           Refresh
@@ -84,16 +97,22 @@ export default function App() {
       </header>
 
       {/* Content */}
-      <main style={{ padding: "24px 32px", maxWidth: "1200px", margin: "0 auto" }}>
+      <main
+        style={{
+          padding: `${spacing.xxl} ${spacing.xxxl}`,
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
         {error && (
           <div
             style={{
-              padding: "12px 16px",
-              background: "#7f1d1d",
-              borderRadius: "8px",
-              marginBottom: "16px",
-              color: "#fca5a5",
-              fontSize: "14px",
+              padding: `${spacing.md} ${spacing.lg}`,
+              background: colors.error.bg,
+              borderRadius: radii.lg,
+              marginBottom: spacing.lg,
+              color: colors.error.light,
+              fontSize: fontSizes.base,
             }}
           >
             {error}

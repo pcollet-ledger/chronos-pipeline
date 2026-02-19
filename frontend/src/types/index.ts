@@ -73,3 +73,71 @@ export interface AnalyticsSummary {
     failure_rate: number;
   }>;
 }
+
+/** Valid action names recognised by the workflow engine. */
+export type ActionName = "log" | "transform" | "validate" | "notify" | "aggregate";
+
+/** All valid action names as a runtime array for dropdowns / validation. */
+export const ACTION_NAMES: readonly ActionName[] = [
+  "log",
+  "transform",
+  "validate",
+  "notify",
+  "aggregate",
+] as const;
+
+/** Priority options as a runtime array for dropdowns. */
+export const PRIORITY_OPTIONS: readonly TaskDefinition["priority"][] = [
+  "low",
+  "medium",
+  "high",
+  "critical",
+] as const;
+
+/** Shape of a single task entry in the workflow creation form. */
+export interface TaskFormEntry {
+  name: string;
+  action: ActionName;
+  parameters: Record<string, string>;
+  depends_on: string[];
+  pre_hook: string;
+  post_hook: string;
+  priority: TaskDefinition["priority"];
+}
+
+/** Shape of a task as sent to the API (hooks are nullable, not all fields required). */
+export interface TaskSubmitEntry {
+  name: string;
+  action: string;
+  parameters: Record<string, string>;
+  depends_on: string[];
+  priority: TaskDefinition["priority"];
+  pre_hook: string | null;
+  post_hook: string | null;
+}
+
+/** Payload sent to POST /api/workflows/ or PATCH /api/workflows/:id. */
+export interface WorkflowFormData {
+  name: string;
+  description: string;
+  tags: string[];
+  tasks: TaskSubmitEntry[];
+  schedule?: string | null;
+}
+
+/** Per-field validation errors surfaced by the form. */
+export interface WorkflowFormErrors {
+  name?: string;
+  description?: string;
+  tags?: string;
+  tasks?: string;
+  taskErrors?: Record<number, TaskFieldErrors>;
+}
+
+/** Per-field validation errors for a single task entry. */
+export interface TaskFieldErrors {
+  name?: string;
+  action?: string;
+  parameters?: string;
+  depends_on?: string;
+}

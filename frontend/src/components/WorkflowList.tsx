@@ -1,7 +1,16 @@
 import { useState } from "react";
 import type { Workflow, WorkflowExecution } from "../types";
-import { createWorkflow, deleteWorkflow, executeWorkflow } from "../services/api";
+import { deleteWorkflow, executeWorkflow } from "../services/api";
 import TaskCard from "./TaskCard";
+import WorkflowForm from "./WorkflowForm";
+import {
+  colors,
+  fontSizes,
+  fontWeights,
+  radii,
+  shadows,
+  spacing,
+} from "../styles/theme";
 
 interface Props {
   workflows: Workflow[];
@@ -9,15 +18,10 @@ interface Props {
 }
 
 export default function WorkflowList({ workflows, onRefresh }: Props) {
-  const [newName, setNewName] = useState("");
-  const [executionResult, setExecutionResult] = useState<WorkflowExecution | null>(null);
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    await createWorkflow({ name: newName.trim(), description: "Auto-created pipeline" });
-    setNewName("");
-    onRefresh();
-  };
+  const [executionResult, setExecutionResult] =
+    useState<WorkflowExecution | null>(null);
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
   const handleExecute = async (id: string) => {
     const result = await executeWorkflow(id);
@@ -30,62 +34,89 @@ export default function WorkflowList({ workflows, onRefresh }: Props) {
     onRefresh();
   };
 
+  const handleFormSuccess = () => {
+    setShowForm(false);
+    setEditingWorkflow(null);
+    onRefresh();
+  };
+
+  const handleEdit = (wf: Workflow) => {
+    setEditingWorkflow(wf);
+    setShowForm(true);
+  };
+
   return (
     <div>
-      <h2 style={{ fontSize: "18px", marginBottom: "20px", color: "#e2e8f0" }}>
-        Pipelines
-      </h2>
-
-      {/* Create form */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
-        <input
-          type="text"
-          placeholder="New pipeline name..."
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: spacing.xl,
+        }}
+      >
+        <h2
           style={{
-            flex: 1,
-            padding: "10px 14px",
-            borderRadius: "8px",
-            border: "1px solid #334155",
-            background: "#1e293b",
-            color: "#e2e8f0",
-            fontSize: "14px",
-            outline: "none",
-          }}
-        />
-        <button
-          onClick={handleCreate}
-          style={{
-            padding: "10px 20px",
-            borderRadius: "8px",
-            border: "none",
-            background: "#2563eb",
-            color: "#fff",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "14px",
+            fontSize: fontSizes.xl,
+            color: colors.neutral[200],
           }}
         >
-          Create
+          Pipelines
+        </h2>
+        <button
+          onClick={() => {
+            setEditingWorkflow(null);
+            setShowForm(!showForm);
+          }}
+          style={{
+            padding: `10px ${spacing.xl}`,
+            borderRadius: radii.lg,
+            border: "none",
+            background: colors.primary.main,
+            color: "#fff",
+            cursor: "pointer",
+            fontWeight: fontWeights.semibold,
+            fontSize: fontSizes.base,
+          }}
+        >
+          {showForm ? "Cancel" : "New Pipeline"}
         </button>
       </div>
 
+      {/* Create / Edit form */}
+      {showForm && (
+        <div style={{ marginBottom: spacing.xxl }}>
+          <WorkflowForm
+            workflow={editingWorkflow ?? undefined}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingWorkflow(null);
+            }}
+          />
+        </div>
+      )}
+
       {/* Pipeline list */}
       {workflows.length === 0 ? (
-        <div style={{ color: "#475569", textAlign: "center", padding: "40px" }}>
+        <div
+          style={{
+            color: colors.neutral[600],
+            textAlign: "center",
+            padding: spacing.xxxxl,
+          }}
+        >
           No pipelines yet. Create one above.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: spacing.md }}>
           {workflows.map((wf) => (
             <div
               key={wf.id}
               style={{
-                background: "#1e293b",
-                borderRadius: "12px",
-                padding: "16px 20px",
+                background: colors.neutral[800],
+                borderRadius: radii.xl,
+                padding: `${spacing.lg} ${spacing.xl}`,
               }}
             >
               <div
@@ -93,24 +124,48 @@ export default function WorkflowList({ workflows, onRefresh }: Props) {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "8px",
+                  marginBottom: spacing.sm,
                 }}
               >
                 <div>
-                  <h3 style={{ fontSize: "16px", color: "#e2e8f0", fontWeight: 600 }}>
+                  <h3
+                    style={{
+                      fontSize: fontSizes.lg,
+                      color: colors.neutral[200],
+                      fontWeight: fontWeights.semibold,
+                    }}
+                  >
                     {wf.name}
                   </h3>
                   {wf.description && (
-                    <p style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>
+                    <p
+                      style={{
+                        fontSize: fontSizes.md,
+                        color: colors.neutral[500],
+                        marginTop: spacing.xs,
+                      }}
+                    >
                       {wf.description}
                     </p>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => handleExecute(wf.id)} style={btnStyle("#059669")}>
+                <div style={{ display: "flex", gap: spacing.sm }}>
+                  <button
+                    onClick={() => handleEdit(wf)}
+                    style={btnStyle(colors.primary.main)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleExecute(wf.id)}
+                    style={btnStyle(colors.success.dark)}
+                  >
                     Run
                   </button>
-                  <button onClick={() => handleDelete(wf.id)} style={btnStyle("#dc2626")}>
+                  <button
+                    onClick={() => handleDelete(wf.id)}
+                    style={btnStyle(colors.error.dark)}
+                  >
                     Delete
                   </button>
                 </div>
@@ -118,16 +173,23 @@ export default function WorkflowList({ workflows, onRefresh }: Props) {
 
               {/* Tags */}
               {wf.tags.length > 0 && (
-                <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: spacing.sm,
+                    marginBottom: spacing.sm,
+                    flexWrap: "wrap",
+                  }}
+                >
                   {wf.tags.map((tag) => (
                     <span
                       key={tag}
                       style={{
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        background: "#334155",
-                        color: "#94a3b8",
-                        fontSize: "12px",
+                        padding: `2px ${spacing.sm}`,
+                        borderRadius: radii.sm,
+                        background: colors.neutral[700],
+                        color: colors.neutral[400],
+                        fontSize: fontSizes.sm,
                       }}
                     >
                       {tag}
@@ -138,11 +200,23 @@ export default function WorkflowList({ workflows, onRefresh }: Props) {
 
               {/* Tasks */}
               {wf.tasks.length > 0 && (
-                <div style={{ marginTop: "12px" }}>
-                  <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px" }}>
+                <div style={{ marginTop: spacing.md }}>
+                  <div
+                    style={{
+                      fontSize: fontSizes.sm,
+                      color: colors.neutral[500],
+                      marginBottom: spacing.sm,
+                    }}
+                  >
                     {wf.tasks.length} task{wf.tasks.length !== 1 ? "s" : ""}
                   </div>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: spacing.sm,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     {wf.tasks.map((task) => (
                       <TaskCard key={task.id} task={task} />
                     ))}
@@ -159,22 +233,26 @@ export default function WorkflowList({ workflows, onRefresh }: Props) {
         <div
           style={{
             position: "fixed",
-            bottom: "20px",
-            right: "20px",
-            background: executionResult.status === "completed" ? "#064e3b" : "#7f1d1d",
+            bottom: spacing.xl,
+            right: spacing.xl,
+            background:
+              executionResult.status === "completed"
+                ? colors.success.dark
+                : colors.error.bg,
             color: "#fff",
-            padding: "16px 20px",
-            borderRadius: "12px",
-            fontSize: "14px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            padding: `${spacing.lg} ${spacing.xl}`,
+            borderRadius: radii.xl,
+            fontSize: fontSizes.base,
+            boxShadow: shadows.lg,
             cursor: "pointer",
             maxWidth: "400px",
           }}
           onClick={() => setExecutionResult(null)}
         >
           <strong>Execution {executionResult.status}</strong>
-          <div style={{ fontSize: "12px", marginTop: "4px", opacity: 0.8 }}>
-            {executionResult.task_results.length} tasks completed · Click to dismiss
+          <div style={{ fontSize: fontSizes.sm, marginTop: spacing.xs, opacity: 0.8 }}>
+            {executionResult.task_results.length} tasks completed · Click to
+            dismiss
           </div>
         </div>
       )}
@@ -184,13 +262,13 @@ export default function WorkflowList({ workflows, onRefresh }: Props) {
 
 function btnStyle(bg: string): React.CSSProperties {
   return {
-    padding: "6px 14px",
-    borderRadius: "6px",
+    padding: `6px ${spacing.lg}`,
+    borderRadius: radii.md,
     border: "none",
     background: bg,
     color: "#fff",
     cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: 500,
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.medium,
   };
 }
