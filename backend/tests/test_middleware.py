@@ -125,3 +125,48 @@ class TestMiddlewareWithAllEndpoints:
         assert resp.status_code == 422
         assert "x-request-id" in resp.headers
         assert "x-response-time" in resp.headers
+
+
+class TestMiddlewareConsistency:
+    """Additional middleware tests for consistency and edge cases."""
+
+    def test_analytics_summary_has_both_headers(self, client):
+        resp = client.get("/api/analytics/summary")
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_analytics_timeline_has_both_headers(self, client):
+        resp = client.get("/api/analytics/timeline")
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_bulk_delete_has_headers(self, client):
+        resp = client.post("/api/workflows/bulk-delete", json={"ids": ["fake"]})
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_execution_list_has_headers(self, client):
+        resp = client.get("/api/tasks/executions")
+        assert "x-request-id" in resp.headers
+        assert "x-response-time" in resp.headers
+
+    def test_request_id_is_uuid_format(self, client):
+        resp = client.get("/api/workflows/")
+        rid = resp.headers["x-request-id"]
+        assert UUID_PATTERN.match(rid), f"Request ID {rid!r} is not a valid UUID"
+
+    def test_response_time_format_on_create(self, client):
+        resp = client.post("/api/workflows/", json={"name": "Timing Test"})
+        assert TIMING_PATTERN.match(resp.headers["x-response-time"])
+
+    def test_multiple_sequential_requests_all_have_headers(self, client):
+        for _ in range(5):
+            resp = client.get("/health")
+            assert "x-request-id" in resp.headers
+            assert "x-response-time" in resp.headers
+
+    def test_response_time_under_threshold(self, client):
+        """All simple requests should complete in under 2 seconds."""
+        resp = client.get("/api/workflows/")
+        time_str = resp.headers["x-response-time"].replace("ms", "")
+        assert float(time_str) < 2000

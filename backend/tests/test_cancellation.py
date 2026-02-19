@@ -279,3 +279,33 @@ class TestCancelServiceLayer:
 
         result = cancel_execution(running_exec.id)
         assert result.completed_at == result.cancelled_at
+
+    def test_cancel_returns_same_execution_id(self):
+        wf = create_workflow(WorkflowCreate(name="WF", tasks=[]))
+        running_exec = WorkflowExecution(
+            workflow_id=wf.id,
+            status=WorkflowStatus.RUNNING,
+        )
+        _executions[running_exec.id] = running_exec
+
+        result = cancel_execution(running_exec.id)
+        assert result.id == running_exec.id
+
+    def test_cancel_via_api_preserves_workflow_id(self, client):
+        wf_id = _create_good_workflow(client)
+        running_exec = WorkflowExecution(
+            workflow_id=wf_id,
+            status=WorkflowStatus.RUNNING,
+        )
+        _executions[running_exec.id] = running_exec
+
+        resp = client.post(f"/api/tasks/executions/{running_exec.id}/cancel")
+        assert resp.json()["workflow_id"] == wf_id
+
+    def test_cancel_error_message_includes_status(self, client):
+        """Error message for non-cancellable execution includes current status."""
+        wf_id = _create_good_workflow(client)
+        exec_data = client.post(f"/api/workflows/{wf_id}/execute").json()
+        resp = client.post(f"/api/tasks/executions/{exec_data['id']}/cancel")
+        assert resp.status_code == 409
+        assert "completed" in resp.json()["detail"]

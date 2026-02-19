@@ -298,3 +298,84 @@ class TestFullLifecycle:
         output = exec_resp.json()["task_results"][0]["output"]
         assert "pre_hook_output" in output
         assert "post_hook_output" in output
+
+    def test_clone_and_execute_independently(self, client):
+        """Clone a workflow, execute both, verify independent results."""
+        resp = client.post("/api/workflows/", json={
+            "name": "Original",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        })
+        wf_id = resp.json()["id"]
+        clone_resp = client.post(f"/api/workflows/{wf_id}/clone")
+        clone_id = clone_resp.json()["id"]
+
+        exec1 = client.post(f"/api/workflows/{wf_id}/execute").json()
+        exec2 = client.post(f"/api/workflows/{clone_id}/execute").json()
+        assert exec1["workflow_id"] == wf_id
+        assert exec2["workflow_id"] == clone_id
+        assert exec1["status"] == "completed"
+        assert exec2["status"] == "completed"
+
+    def test_versioning_after_updates(self, client):
+        """Update a workflow multiple times and verify version history."""
+        resp = client.post("/api/workflows/", json={"name": "Versioned"})
+        wf_id = resp.json()["id"]
+        client.patch(f"/api/workflows/{wf_id}", json={"name": "V2"})
+        client.patch(f"/api/workflows/{wf_id}", json={"name": "V3"})
+
+        history = client.get(f"/api/workflows/{wf_id}/history").json()
+        assert len(history) == 2
+        assert history[0]["version"] == 2
+        assert history[1]["version"] == 1
+
+    def test_dry_run_does_not_create_execution(self, client):
+        """Dry run should not appear in execution list."""
+        resp = client.post("/api/workflows/", json={
+            "name": "Dry Run WF",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        })
+        wf_id = resp.json()["id"]
+        client.post(f"/api/workflows/{wf_id}/dry-run")
+        execs = client.get(f"/api/workflows/{wf_id}/executions").json()
+        assert len(execs) == 0
+
+    def test_comparison_between_executions(self, client):
+        """Execute a workflow twice and compare the executions."""
+        resp = client.post("/api/workflows/", json={
+            "name": "Compare WF",
+            "tasks": [{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        })
+        wf_id = resp.json()["id"]
+        exec1 = client.post(f"/api/workflows/{wf_id}/execute").json()
+        exec2 = client.post(f"/api/workflows/{wf_id}/execute").json()
+        compare = client.get(
+            "/api/tasks/executions/compare",
+            params={"ids": f"{exec1['id']},{exec2['id']}"},
+        ).json()
+        assert compare["workflow_id"] == wf_id
+        assert compare["summary"]["unchanged_count"] >= 1
+
+    def test_search_after_tag_operations(self, client):
+        """Add tags to a workflow and verify search + tag filtering works."""
+        resp = client.post("/api/workflows/", json={"name": "Searchable"})
+        wf_id = resp.json()["id"]
+        client.post(f"/api/workflows/{wf_id}/tags", json={"tags": ["searchable"]})
+        results = client.get("/api/workflows/", params={"tag": "searchable"}).json()
+        assert len(results) == 1
+        assert results[0]["id"] == wf_id
+
+    def test_full_lifecycle_with_formatters(self):
+        """Verify formatters work with real execution data."""
+        from app.utils.formatters import format_execution_report, format_workflow_tree
+
+        wf = create_workflow(WorkflowCreate(
+            name="Formatter WF",
+            tasks=[{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        ))
+        tree = format_workflow_tree(wf)
+        assert "Formatter WF" in tree
+
+        ex = execute_workflow(wf.id)
+        report = format_execution_report(ex)
+        assert "completed" in report
+        assert wf.id in report

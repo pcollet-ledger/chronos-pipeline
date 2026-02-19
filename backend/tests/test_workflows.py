@@ -165,3 +165,68 @@ class TestWorkflowListPagination:
             client.post("/api/workflows/", json=_sample_workflow_payload(f"WF-{i}"))
         resp = client.get("/api/workflows/", params={"offset": 3, "limit": 10})
         assert len(resp.json()) == 2
+
+
+class TestWorkflowSearchAndFilter:
+    """Additional tests for search, filter, and edge cases."""
+
+    def test_search_by_name(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload("Alpha Pipeline"))
+        client.post("/api/workflows/", json=_sample_workflow_payload("Beta Pipeline"))
+        client.post("/api/workflows/", json=_sample_workflow_payload("Gamma Job"))
+        resp = client.get("/api/workflows/", params={"search": "pipeline"})
+        assert len(resp.json()) == 2
+
+    def test_search_case_insensitive(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload("My Workflow"))
+        resp = client.get("/api/workflows/", params={"search": "MY WORKFLOW"})
+        assert len(resp.json()) == 1
+
+    def test_list_with_search_and_tag(self, client):
+        client.post("/api/workflows/", json={
+            "name": "Tagged Search", "tags": ["special"],
+        })
+        client.post("/api/workflows/", json={
+            "name": "Tagged Other", "tags": ["special"],
+        })
+        client.post("/api/workflows/", json={
+            "name": "Search Only",
+        })
+        resp = client.get("/api/workflows/", params={"search": "Tagged", "tag": "special"})
+        assert len(resp.json()) == 2
+
+    def test_update_increments_version(self, client):
+        resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = resp.json()["id"]
+        assert resp.json()["version"] == 1
+        update_resp = client.patch(f"/api/workflows/{wf_id}", json={"name": "V2"})
+        assert update_resp.json()["version"] == 2
+
+    def test_create_with_schedule(self, client):
+        payload = _sample_workflow_payload("Scheduled")
+        payload["schedule"] = "0 8 * * *"
+        resp = client.post("/api/workflows/", json=payload)
+        assert resp.status_code == 201
+        assert resp.json()["schedule"] == "0 8 * * *"
+
+    def test_list_returns_sorted_by_updated_at(self, client):
+        """Workflows should be sorted by updated_at descending."""
+        r1 = client.post("/api/workflows/", json=_sample_workflow_payload("First"))
+        r2 = client.post("/api/workflows/", json=_sample_workflow_payload("Second"))
+        wf1_id = r1.json()["id"]
+        client.patch(f"/api/workflows/{wf1_id}", json={"name": "First Updated"})
+        resp = client.get("/api/workflows/")
+        names = [w["name"] for w in resp.json()]
+        assert names[0] == "First Updated"
+
+    def test_offset_beyond_total_returns_empty(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload("Only"))
+        resp = client.get("/api/workflows/", params={"offset": 100})
+        assert resp.json() == []
+
+    def test_delete_returns_204_no_content(self, client):
+        resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = resp.json()["id"]
+        del_resp = client.delete(f"/api/workflows/{wf_id}")
+        assert del_resp.status_code == 204
+        assert del_resp.content == b""
