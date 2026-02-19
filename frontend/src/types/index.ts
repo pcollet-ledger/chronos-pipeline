@@ -92,3 +92,38 @@ export interface TimelineBucket {
   completed: number;
   failed: number;
 }
+
+export interface ExecutionComparison {
+  execution_a: WorkflowExecution;
+  execution_b: WorkflowExecution;
+  duration_diff_ms: number;
+  status_match: boolean;
+  task_diffs: Array<{
+    task_id: string;
+    status_a: string;
+    status_b: string;
+    duration_a_ms: number | null;
+    duration_b_ms: number | null;
+  }>;
+}
+
+export interface VersionSnapshot {
+  version: number;
+  snapshot: Workflow;
+  created_at: string;
+}
+
+export interface Theme {
+  bg: string;
+  bgCard: string;
+  bgInput: string;
+  border: string;
+  text: string;
+  textMuted: string;
+  textDim: string;
+  accent: string;
+  success: string;
+  error: string;
+  warning: string;
+  info: string;
+}

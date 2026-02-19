@@ -1,7 +1,9 @@
 import type {
   AnalyticsSummary,
   BulkDeleteResponse,
+  ExecutionComparison,
   TimelineBucket,
+  VersionSnapshot,
   Workflow,
   WorkflowCreatePayload,
   WorkflowExecution,
@@ -23,9 +25,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Workflows
-export function listWorkflows(tag?: string): Promise<Workflow[]> {
-  const params = tag ? `?tag=${encodeURIComponent(tag)}` : "";
-  return request<Workflow[]>(`/workflows/${params}`);
+export function listWorkflows(tag?: string, search?: string): Promise<Workflow[]> {
+  const params = new URLSearchParams();
+  if (tag) params.set("tag", tag);
+  if (search) params.set("search", search);
+  const qs = params.toString();
+  return request<Workflow[]>(`/workflows/${qs ? `?${qs}` : ""}`);
 }
 
 export function getWorkflow(id: string): Promise<Workflow> {
@@ -76,6 +81,52 @@ export function listWorkflowExecutions(
 ): Promise<WorkflowExecution[]> {
   return request<WorkflowExecution[]>(
     `/workflows/${workflowId}/executions?limit=${limit}`,
+  );
+}
+
+export function dryRunWorkflow(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/workflows/${id}/dry-run`, {
+    method: "POST",
+  });
+}
+
+export function cloneWorkflow(id: string): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/clone`, { method: "POST" });
+}
+
+export function addTags(id: string, tags: string[]): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/tags`, {
+    method: "POST",
+    body: JSON.stringify({ tags }),
+  });
+}
+
+export function removeTag(id: string, tag: string): Promise<Workflow> {
+  return request<Workflow>(
+    `/workflows/${id}/tags/${encodeURIComponent(tag)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function getWorkflowHistory(
+  id: string,
+): Promise<VersionSnapshot[]> {
+  return request<VersionSnapshot[]>(`/workflows/${id}/history`);
+}
+
+export function getWorkflowVersion(
+  id: string,
+  version: number,
+): Promise<VersionSnapshot> {
+  return request<VersionSnapshot>(`/workflows/${id}/history/${version}`);
+}
+
+export function compareExecutions(
+  idA: string,
+  idB: string,
+): Promise<ExecutionComparison> {
+  return request<ExecutionComparison>(
+    `/tasks/executions/compare?ids=${encodeURIComponent(idA)},${encodeURIComponent(idB)}`,
   );
 }
 
