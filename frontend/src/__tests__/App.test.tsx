@@ -28,8 +28,8 @@ describe("App", () => {
 
   it("renders navigation buttons", () => {
     render(<App />);
-    expect(screen.getByText("dashboard")).toBeDefined();
-    expect(screen.getByText("workflows")).toBeDefined();
+    expect(screen.getByText("Dashboard")).toBeDefined();
+    expect(screen.getByText("Workflows")).toBeDefined();
   });
 
   it("renders refresh button", () => {

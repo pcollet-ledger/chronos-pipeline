@@ -40,6 +40,7 @@ export interface Workflow {
   tasks: TaskDefinition[];
   schedule: string | null;
   tags: string[];
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -91,4 +92,56 @@ export interface TimelineBucket {
   total: number;
   completed: number;
   failed: number;
+}
+
+export interface TaskComparisonItem {
+  task_id: string;
+  status_a: string;
+  status_b: string;
+  duration_diff_ms: number | null;
+}
+
+export interface ComparisonSummary {
+  improved_count: number;
+  regressed_count: number;
+  unchanged_count: number;
+}
+
+export interface ExecutionComparison {
+  workflow_id: string;
+  executions: WorkflowExecution[];
+  task_comparison: TaskComparisonItem[];
+  summary: ComparisonSummary;
+}
+
+export interface WorkflowVersion {
+  id: string;
+  name: string;
+  description: string;
+  tasks: TaskDefinition[];
+  tags: string[];
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ThemeMode = "light" | "dark";
+
+export interface ThemePalette {
+  background: string;
+  surface: string;
+  text: string;
+  textSecondary: string;
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  secondary: string;
+  error: string;
+  errorLight: string;
+  success: string;
+  successLight: string;
+  warning: string;
+  warningLight: string;
+  info: string;
+  border: string;
 }

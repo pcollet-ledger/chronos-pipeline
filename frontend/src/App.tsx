@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import WorkflowList from "./components/WorkflowList";
+import WorkflowDetail from "./components/WorkflowDetail";
 import ErrorBanner from "./components/ErrorBanner";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import type { AnalyticsSummary, Workflow } from "./types";
 import { getAnalyticsSummary, listWorkflows } from "./services/api";
 
-type View = "dashboard" | "workflows";
+type View =
+  | { kind: "dashboard" }
+  | { kind: "workflows" }
+  | { kind: "workflow-detail"; id: string };
 
-export default function App() {
-  const [view, setView] = useState<View>("dashboard");
+function AppContent() {
+  const { mode, palette, toggle } = useTheme();
+  const [view, setView] = useState<View>({ kind: "dashboard" });
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,56 +41,79 @@ export default function App() {
     void refresh();
   }, []);
 
+  const navItems = [
+    { kind: "dashboard" as const, label: "Dashboard" },
+    { kind: "workflows" as const, label: "Workflows" },
+  ];
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a" }}>
+    <div style={{ minHeight: "100vh", background: palette.background, color: palette.text }}>
       <header
         style={{
           padding: "16px 32px",
-          borderBottom: "1px solid #1e293b",
+          borderBottom: `1px solid ${palette.border}`,
           display: "flex",
           alignItems: "center",
           gap: "24px",
         }}
       >
-        <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#38bdf8" }}>
+        <h1 style={{ fontSize: "20px", fontWeight: 700, color: palette.info }}>
           Chronos Pipeline
         </h1>
         <nav style={{ display: "flex", gap: "12px" }}>
-          {(["dashboard", "workflows"] as const).map((v) => (
+          {navItems.map((item) => (
             <button
-              key={v}
-              onClick={() => setView(v)}
+              key={item.kind}
+              onClick={() => setView({ kind: item.kind })}
               style={{
                 padding: "6px 16px",
                 borderRadius: "6px",
                 border: "none",
                 cursor: "pointer",
-                background: view === v ? "#1e40af" : "transparent",
-                color: view === v ? "#fff" : "#94a3b8",
-                fontWeight: view === v ? 600 : 400,
+                background:
+                  view.kind === item.kind ? palette.primaryDark : "transparent",
+                color:
+                  view.kind === item.kind ? "#fff" : palette.textSecondary,
+                fontWeight: view.kind === item.kind ? 600 : 400,
                 fontSize: "14px",
-                textTransform: "capitalize",
               }}
             >
-              {v}
+              {item.label}
             </button>
           ))}
         </nav>
-        <button
-          onClick={() => void refresh()}
-          style={{
-            marginLeft: "auto",
-            padding: "6px 16px",
-            borderRadius: "6px",
-            border: "1px solid #334155",
-            background: "transparent",
-            color: "#94a3b8",
-            cursor: "pointer",
-            fontSize: "13px",
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+          <button
+            onClick={toggle}
+            data-testid="theme-toggle"
+            title={`Switch to ${mode === "dark" ? "light" : "dark"} mode`}
+            style={{
+              padding: "6px 14px",
+              borderRadius: "6px",
+              border: `1px solid ${palette.border}`,
+              background: "transparent",
+              color: palette.textSecondary,
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+          >
+            {mode === "dark" ? "Light" : "Dark"}
+          </button>
+          <button
+            onClick={() => void refresh()}
+            style={{
+              padding: "6px 16px",
+              borderRadius: "6px",
+              border: `1px solid ${palette.border}`,
+              background: "transparent",
+              color: palette.textSecondary,
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </header>
 
       <main
@@ -102,17 +131,34 @@ export default function App() {
           />
         )}
 
-        {view === "dashboard" && (
+        {view.kind === "dashboard" && (
           <Dashboard analytics={analytics} loading={loading} />
         )}
-        {view === "workflows" && (
+        {view.kind === "workflows" && (
           <WorkflowList
             workflows={workflows}
             onRefresh={() => void refresh()}
             loading={loading}
+            onSelectWorkflow={(id: string) =>
+              setView({ kind: "workflow-detail", id })
+            }
+          />
+        )}
+        {view.kind === "workflow-detail" && (
+          <WorkflowDetail
+            workflowId={view.id}
+            onBack={() => setView({ kind: "workflows" })}
           />
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
