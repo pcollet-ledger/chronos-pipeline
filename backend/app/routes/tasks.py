@@ -35,3 +35,15 @@ async def get_execution(execution_id: str):
     if not ex:
         raise HTTPException(status_code=404, detail="Execution not found")
     return ex
+
+
+@router.post("/executions/{execution_id}/retry", response_model=WorkflowExecution)
+async def retry_execution(execution_id: str):
+    """Re-run only the failed tasks from a previous execution."""
+    try:
+        result = workflow_engine.retry_execution(execution_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    return result

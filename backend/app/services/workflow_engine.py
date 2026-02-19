@@ -139,6 +139,67 @@ def get_execution(execution_id: str) -> Optional[WorkflowExecution]:
     return _executions.get(execution_id)
 
 
+def retry_execution(execution_id: str) -> Optional[WorkflowExecution]:
+    """Re-run only the failed/unexecuted tasks from a previous execution.
+
+    Returns ``None`` if the *execution_id* is not found.
+    Raises ``ValueError`` if the execution is not in a ``FAILED`` state or if
+    the parent workflow no longer exists.
+    """
+    original = _executions.get(execution_id)
+    if original is None:
+        return None
+
+    if original.status != WorkflowStatus.FAILED:
+        raise ValueError(
+            f"Only failed executions can be retried. Current status: {original.status.value}"
+        )
+
+    workflow = _workflows.get(original.workflow_id)
+    if workflow is None:
+        raise ValueError("Parent workflow no longer exists")
+
+    # Determine which task IDs completed successfully in the original run
+    succeeded_task_ids = {
+        tr.task_id
+        for tr in original.task_results
+        if tr.status == WorkflowStatus.COMPLETED
+    }
+
+    # Build a new execution, preserving successful results
+    new_execution = WorkflowExecution(
+        workflow_id=original.workflow_id,
+        status=WorkflowStatus.RUNNING,
+        started_at=datetime.utcnow(),
+        trigger="retry",
+        metadata={"retried_from": execution_id},
+    )
+
+    ordered_tasks = _topological_sort(workflow.tasks)
+
+    for task in ordered_tasks:
+        if task.id in succeeded_task_ids:
+            # Carry forward the original successful result
+            prev_result = next(
+                tr for tr in original.task_results if tr.task_id == task.id
+            )
+            new_execution.task_results.append(prev_result)
+        else:
+            # Re-execute this task
+            result = _execute_task(task)
+            new_execution.task_results.append(result)
+            if result.status == WorkflowStatus.FAILED:
+                new_execution.status = WorkflowStatus.FAILED
+                new_execution.completed_at = datetime.utcnow()
+                _executions[new_execution.id] = new_execution
+                return new_execution
+
+    new_execution.status = WorkflowStatus.COMPLETED
+    new_execution.completed_at = datetime.utcnow()
+    _executions[new_execution.id] = new_execution
+    return new_execution
+
+
 def list_executions(
     workflow_id: Optional[str] = None,
     status: Optional[WorkflowStatus] = None,
