@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import analytics, tasks, workflows
+from .utils.middleware import TimingAndTracingMiddleware
 
 app = FastAPI(
     title="Chronos Pipeline",
@@ -11,6 +12,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(TimingAndTracingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],
@@ -25,6 +27,10 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"]
 
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint."""
+async def health_check() -> dict[str, str]:
+    """Health check endpoint.
+
+    Returns:
+        A dict with service status information.
+    """
     return {"status": "healthy", "service": "chronos-pipeline-backend"}

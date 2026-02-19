@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import WorkflowList from "./components/WorkflowList";
+import ErrorBanner from "./components/ErrorBanner";
 import type { AnalyticsSummary, Workflow } from "./types";
 import { getAnalyticsSummary, listWorkflows } from "./services/api";
 
@@ -11,10 +12,12 @@ export default function App() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const refresh = async () => {
     try {
       setError(null);
+      setLoading(true);
       const [wfs, stats] = await Promise.all([
         listWorkflows(),
         getAnalyticsSummary(),
@@ -23,16 +26,17 @@ export default function App() {
       setAnalytics(stats);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f172a" }}>
-      {/* Header */}
       <header
         style={{
           padding: "16px 32px",
@@ -46,7 +50,7 @@ export default function App() {
           Chronos Pipeline
         </h1>
         <nav style={{ display: "flex", gap: "12px" }}>
-          {(["dashboard", "workflows"] as View[]).map((v) => (
+          {(["dashboard", "workflows"] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -67,7 +71,7 @@ export default function App() {
           ))}
         </nav>
         <button
-          onClick={refresh}
+          onClick={() => void refresh()}
           style={{
             marginLeft: "auto",
             padding: "6px 16px",
@@ -83,26 +87,30 @@ export default function App() {
         </button>
       </header>
 
-      {/* Content */}
-      <main style={{ padding: "24px 32px", maxWidth: "1200px", margin: "0 auto" }}>
+      <main
+        style={{
+          padding: "24px 32px",
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
         {error && (
-          <div
-            style={{
-              padding: "12px 16px",
-              background: "#7f1d1d",
-              borderRadius: "8px",
-              marginBottom: "16px",
-              color: "#fca5a5",
-              fontSize: "14px",
-            }}
-          >
-            {error}
-          </div>
+          <ErrorBanner
+            message={error}
+            onDismiss={() => setError(null)}
+            onRetry={() => void refresh()}
+          />
         )}
 
-        {view === "dashboard" && <Dashboard analytics={analytics} />}
+        {view === "dashboard" && (
+          <Dashboard analytics={analytics} loading={loading} />
+        )}
         {view === "workflows" && (
-          <WorkflowList workflows={workflows} onRefresh={refresh} />
+          <WorkflowList
+            workflows={workflows}
+            onRefresh={() => void refresh()}
+            loading={loading}
+          />
         )}
       </main>
     </div>

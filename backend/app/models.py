@@ -80,6 +80,7 @@ class WorkflowExecution(BaseModel):
     status: WorkflowStatus = WorkflowStatus.PENDING
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
     task_results: List[TaskResult] = Field(default_factory=list)
     trigger: str = "manual"
     metadata: Dict[str, Any] = Field(default_factory=dict)
