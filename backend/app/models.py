@@ -103,6 +103,33 @@ class WorkflowUpdate(BaseModel):
     tags: Optional[List[str]] = None
 
 
+class BulkDeleteRequest(BaseModel):
+    """Request body for bulk-deleting workflows by ID.
+
+    Accepts a list of workflow IDs.  IDs that do not correspond to an
+    existing workflow are silently counted as ``not_found`` rather than
+    raising an error, so callers can fire-and-forget without pre-checking.
+    """
+    ids: List[str] = Field(
+        ...,
+        min_length=1,
+        description="Non-empty list of workflow IDs to delete.",
+    )
+
+
+class BulkDeleteResponse(BaseModel):
+    """Summary returned after a bulk-delete operation.
+
+    ``deleted`` and ``not_found`` always sum to the length of the
+    original request list (minus any duplicates that were deduplicated
+    server-side).
+    """
+    deleted: int = 0
+    not_found: int = 0
+    deleted_ids: List[str] = Field(default_factory=list)
+    not_found_ids: List[str] = Field(default_factory=list)
+
+
 class AnalyticsSummary(BaseModel):
     """Summary analytics for the dashboard."""
     total_workflows: int = 0
