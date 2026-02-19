@@ -279,3 +279,14 @@ class TestCancelServiceLayer:
 
         result = cancel_execution(running_exec.id)
         assert result.completed_at == result.cancelled_at
+
+    def test_cancel_does_not_remove_execution_from_store(self):
+        wf = create_workflow(WorkflowCreate(name="WF", tasks=[]))
+        running_exec = WorkflowExecution(
+            workflow_id=wf.id,
+            status=WorkflowStatus.RUNNING,
+        )
+        _executions[running_exec.id] = running_exec
+
+        cancel_execution(running_exec.id)
+        assert running_exec.id in _executions

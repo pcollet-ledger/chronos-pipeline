@@ -244,3 +244,65 @@ class TestStressViaAPI:
             client.post(f"/api/workflows/{wf_id}/execute")
         resp = client.get("/api/tasks/executions", params={"limit": 1000})
         assert len(resp.json()) == 50
+
+
+class TestStressSearch:
+    """Search under load."""
+
+    def test_search_among_200_workflows(self):
+        for i in range(200):
+            create_workflow(WorkflowCreate(name=f"Pipeline-{i}" if i % 2 == 0 else f"Job-{i}"))
+        from app.services.workflow_engine import search_workflows
+        results = search_workflows("Pipeline", limit=1000)
+        assert len(results) == 100
+
+    def test_search_with_tags_at_scale(self):
+        for i in range(100):
+            create_workflow(WorkflowCreate(
+                name=f"WF-{i}",
+                tags=["alpha"] if i < 50 else ["beta"],
+            ))
+        from app.services.workflow_engine import search_workflows
+        results = search_workflows("WF", tag="alpha", limit=1000)
+        assert len(results) == 50
+
+    def test_clone_at_scale(self):
+        from app.services.workflow_engine import clone_workflow
+        wf = create_workflow(WorkflowCreate(
+            name="Template",
+            tasks=[{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+        ))
+        for _ in range(50):
+            cloned = clone_workflow(wf.id)
+            assert cloned is not None
+        all_wfs = list_workflows(limit=1000)
+        assert len(all_wfs) == 51
+
+    def test_versioning_at_scale(self):
+        from app.services.workflow_engine import update_workflow, get_workflow_history
+        from app.models import WorkflowUpdate
+        wf = create_workflow(WorkflowCreate(name="Versioned"))
+        for i in range(50):
+            update_workflow(wf.id, WorkflowUpdate(name=f"V{i+2}"))
+        history = get_workflow_history(wf.id)
+        assert len(history) == 50
+
+    def test_delete_half_and_verify_analytics(self):
+        wf_ids = []
+        for i in range(100):
+            wf = create_workflow(WorkflowCreate(
+                name=f"WF-{i}",
+                tasks=[{"name": "S", "action": "log", "parameters": {"message": "ok"}}],
+            ))
+            execute_workflow(wf.id)
+            wf_ids.append(wf.id)
+
+        from app.services.workflow_engine import delete_workflow
+        for wid in wf_ids[:50]:
+            delete_workflow(wid)
+
+        assert len(list_workflows(limit=1000)) == 50
+        clear_cache()
+        summary = get_summary(days=30)
+        assert summary.total_workflows == 50
+        assert summary.total_executions == 100

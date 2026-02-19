@@ -165,3 +165,50 @@ class TestWorkflowListPagination:
             client.post("/api/workflows/", json=_sample_workflow_payload(f"WF-{i}"))
         resp = client.get("/api/workflows/", params={"offset": 3, "limit": 10})
         assert len(resp.json()) == 2
+
+    def test_offset_beyond_total(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload())
+        resp = client.get("/api/workflows/", params={"offset": 100})
+        assert resp.json() == []
+
+
+class TestWorkflowSearch:
+    def test_search_by_name(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload("Alpha Pipeline"))
+        client.post("/api/workflows/", json=_sample_workflow_payload("Beta Pipeline"))
+        client.post("/api/workflows/", json=_sample_workflow_payload("Gamma"))
+        resp = client.get("/api/workflows/", params={"search": "pipeline"})
+        assert len(resp.json()) == 2
+
+    def test_search_case_insensitive(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload("MyWorkflow"))
+        resp = client.get("/api/workflows/", params={"search": "myworkflow"})
+        assert len(resp.json()) == 1
+
+    def test_search_no_results(self, client):
+        client.post("/api/workflows/", json=_sample_workflow_payload("Alpha"))
+        resp = client.get("/api/workflows/", params={"search": "zzz"})
+        assert resp.json() == []
+
+    def test_search_combined_with_tag(self, client):
+        client.post("/api/workflows/", json={**_sample_workflow_payload("Alpha"), "tags": ["prod"]})
+        client.post("/api/workflows/", json={**_sample_workflow_payload("Alpha Beta"), "tags": ["dev"]})
+        resp = client.get("/api/workflows/", params={"search": "alpha", "tag": "prod"})
+        assert len(resp.json()) == 1
+
+
+class TestWorkflowVersioning:
+    def test_update_increments_version(self, client):
+        resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = resp.json()["id"]
+        assert resp.json()["version"] == 1
+        updated = client.patch(f"/api/workflows/{wf_id}", json={"name": "V2"})
+        assert updated.json()["version"] == 2
+
+    def test_history_after_updates(self, client):
+        resp = client.post("/api/workflows/", json=_sample_workflow_payload())
+        wf_id = resp.json()["id"]
+        client.patch(f"/api/workflows/{wf_id}", json={"name": "V2"})
+        client.patch(f"/api/workflows/{wf_id}", json={"name": "V3"})
+        history = client.get(f"/api/workflows/{wf_id}/history").json()
+        assert len(history) == 2
