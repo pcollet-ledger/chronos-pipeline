@@ -49,6 +49,10 @@ async def list_workflows(
         str | None,
         Query(description="Filter workflows by tag"),
     ] = None,
+    search: Annotated[
+        str | None,
+        Query(description="Case-insensitive substring search on workflow name"),
+    ] = None,
     limit: Annotated[
         int,
         Query(ge=1, le=1000, description="Maximum number of results"),
@@ -62,13 +66,14 @@ async def list_workflows(
 
     Args:
         tag: Optional tag filter.
+        search: Optional name substring filter.
         limit: Maximum number of results (1-1000).
         offset: Pagination offset.
 
     Returns:
         A list of workflow definitions.
     """
-    return workflow_engine.list_workflows(tag=tag, limit=limit, offset=offset)
+    return workflow_engine.list_workflows(tag=tag, search=search, limit=limit, offset=offset)
 
 
 @router.post("/bulk-delete", response_model=BulkDeleteResponse)
@@ -188,3 +193,136 @@ async def list_workflow_executions(
         A list of execution records.
     """
     return workflow_engine.list_executions(workflow_id=workflow_id, limit=limit)
+
+
+@router.post("/{workflow_id}/clone", response_model=WorkflowDefinition, status_code=201)
+async def clone_workflow(workflow_id: WorkflowIdPath) -> WorkflowDefinition:
+    """Clone an existing workflow with a new ID and ' (copy)' appended to the name.
+
+    Args:
+        workflow_id: The unique workflow identifier.
+
+    Returns:
+        The cloned workflow definition.
+
+    Raises:
+        HTTPException: 404 if the workflow is not found.
+    """
+    clone = workflow_engine.clone_workflow(workflow_id)
+    if clone is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return clone
+
+
+@router.post("/{workflow_id}/dry-run", response_model=WorkflowExecution)
+async def dry_run_workflow(workflow_id: WorkflowIdPath) -> WorkflowExecution:
+    """Simulate executing a workflow without running actions.
+
+    Args:
+        workflow_id: The unique workflow identifier.
+
+    Returns:
+        A simulated execution record.
+
+    Raises:
+        HTTPException: 404 if the workflow is not found.
+    """
+    result = workflow_engine.dry_run_workflow(workflow_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return result
+
+
+@router.post("/{workflow_id}/tags", response_model=WorkflowDefinition)
+async def add_workflow_tags(
+    workflow_id: WorkflowIdPath,
+    data: dict,
+) -> WorkflowDefinition:
+    """Add tags to a workflow.
+
+    Args:
+        workflow_id: The unique workflow identifier.
+        data: A dict with a ``tags`` key containing a list of strings.
+
+    Returns:
+        The updated workflow definition.
+
+    Raises:
+        HTTPException: 404 if the workflow is not found.
+    """
+    tags = data.get("tags", [])
+    wf = workflow_engine.add_tags(workflow_id, tags)
+    if wf is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return wf
+
+
+@router.delete("/{workflow_id}/tags/{tag}", response_model=WorkflowDefinition)
+async def remove_workflow_tag(
+    workflow_id: WorkflowIdPath,
+    tag: Annotated[str, Path(description="Tag to remove")],
+) -> WorkflowDefinition:
+    """Remove a tag from a workflow.
+
+    Args:
+        workflow_id: The unique workflow identifier.
+        tag: The tag to remove.
+
+    Returns:
+        The updated workflow definition.
+
+    Raises:
+        HTTPException: 404 if the workflow or tag is not found.
+        HTTPException: 409 if the tag does not exist on the workflow.
+    """
+    try:
+        wf = workflow_engine.remove_tag(workflow_id, tag)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    if wf is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return wf
+
+
+@router.get("/{workflow_id}/history")
+async def get_workflow_history(
+    workflow_id: WorkflowIdPath,
+) -> List[dict]:
+    """Return all version snapshots for a workflow, newest first.
+
+    Args:
+        workflow_id: The unique workflow identifier.
+
+    Returns:
+        A list of version snapshots.
+
+    Raises:
+        HTTPException: 404 if the workflow is not found.
+    """
+    history = workflow_engine.get_workflow_history(workflow_id)
+    if history is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return history
+
+
+@router.get("/{workflow_id}/history/{version}")
+async def get_workflow_version(
+    workflow_id: WorkflowIdPath,
+    version: Annotated[int, Path(ge=1, description="Version number")],
+) -> dict:
+    """Return a specific version snapshot.
+
+    Args:
+        workflow_id: The unique workflow identifier.
+        version: The version number.
+
+    Returns:
+        The version snapshot.
+
+    Raises:
+        HTTPException: 404 if the workflow or version is not found.
+    """
+    snapshot = workflow_engine.get_workflow_version(workflow_id, version)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return snapshot
