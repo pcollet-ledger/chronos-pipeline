@@ -10,9 +10,10 @@ interface Props {
   workflows: Workflow[];
   onRefresh: () => void;
   loading?: boolean;
+  onSelectWorkflow?: (wf: Workflow) => void;
 }
 
-export default function WorkflowList({ workflows, onRefresh, loading }: Props) {
+export default function WorkflowList({ workflows, onRefresh, loading, onSelectWorkflow }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [executionResult, setExecutionResult] =
     useState<WorkflowExecution | null>(null);
@@ -159,6 +160,14 @@ export default function WorkflowList({ workflows, onRefresh, loading }: Props) {
                   )}
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
+                  {onSelectWorkflow && (
+                    <button
+                      onClick={() => onSelectWorkflow(wf)}
+                      style={btnStyle("#2563eb")}
+                    >
+                      View
+                    </button>
+                  )}
                   <button
                     onClick={() => handleExecute(wf.id)}
                     style={btnStyle("#059669")}

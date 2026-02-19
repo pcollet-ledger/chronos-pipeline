@@ -131,6 +131,34 @@ class BulkDeleteResponse(BaseModel):
     not_found_ids: List[str] = Field(default_factory=list)
 
 
+class TagsRequest(BaseModel):
+    """Request body for adding tags to a workflow."""
+    tags: List[str] = Field(..., min_length=1, description="Tags to add.")
+
+
+class TaskComparison(BaseModel):
+    """Side-by-side comparison of a single task across two executions."""
+    task_id: str
+    status_a: str
+    status_b: str
+    duration_diff_ms: Optional[int] = None
+
+
+class ComparisonSummary(BaseModel):
+    """Aggregate summary of an execution comparison."""
+    improved_count: int = 0
+    regressed_count: int = 0
+    unchanged_count: int = 0
+
+
+class ExecutionComparison(BaseModel):
+    """Result of comparing two executions of the same workflow."""
+    workflow_id: str
+    executions: List[WorkflowExecution]
+    task_comparison: List[TaskComparison]
+    summary: ComparisonSummary
+
+
 class AnalyticsSummary(BaseModel):
     """Summary analytics for the dashboard."""
     total_workflows: int = 0

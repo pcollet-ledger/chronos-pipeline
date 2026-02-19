@@ -1,10 +1,13 @@
 import type {
   AnalyticsSummary,
   BulkDeleteResponse,
+  ExecutionComparison,
+  TagsPayload,
   TimelineBucket,
   Workflow,
   WorkflowCreatePayload,
   WorkflowExecution,
+  WorkflowUpdatePayload,
 } from "../types";
 
 const BASE = "/api";
@@ -22,10 +25,23 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return resp.json() as Promise<T>;
 }
 
-// Workflows
-export function listWorkflows(tag?: string): Promise<Workflow[]> {
-  const params = tag ? `?tag=${encodeURIComponent(tag)}` : "";
-  return request<Workflow[]>(`/workflows/${params}`);
+// ---------------------------------------------------------------------------
+// Workflows – CRUD
+// ---------------------------------------------------------------------------
+
+export function listWorkflows(params?: {
+  tag?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<Workflow[]> {
+  const qs = new URLSearchParams();
+  if (params?.tag) qs.set("tag", params.tag);
+  if (params?.search) qs.set("search", params.search);
+  if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+  if (params?.offset !== undefined) qs.set("offset", String(params.offset));
+  const q = qs.toString();
+  return request<Workflow[]>(`/workflows/${q ? `?${q}` : ""}`);
 }
 
 export function getWorkflow(id: string): Promise<Workflow> {
@@ -41,7 +57,7 @@ export function createWorkflow(data: WorkflowCreatePayload): Promise<Workflow> {
 
 export function updateWorkflow(
   id: string,
-  data: Partial<Workflow>,
+  data: WorkflowUpdatePayload,
 ): Promise<Workflow> {
   return request<Workflow>(`/workflows/${id}`, {
     method: "PATCH",
@@ -59,6 +75,10 @@ export function bulkDeleteWorkflows(ids: string[]): Promise<BulkDeleteResponse> 
     body: JSON.stringify({ ids }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Workflows – Execution
+// ---------------------------------------------------------------------------
 
 export function executeWorkflow(
   id: string,
@@ -79,7 +99,54 @@ export function listWorkflowExecutions(
   );
 }
 
-// Executions
+export function dryRunWorkflow(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/workflows/${id}/dry-run`, {
+    method: "POST",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Workflows – Tagging
+// ---------------------------------------------------------------------------
+
+export function addTags(workflowId: string, tags: string[]): Promise<Workflow> {
+  const body: TagsPayload = { tags };
+  return request<Workflow>(`/workflows/${workflowId}/tags`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function removeTag(workflowId: string, tag: string): Promise<Workflow> {
+  return request<Workflow>(
+    `/workflows/${workflowId}/tags/${encodeURIComponent(tag)}`,
+    { method: "DELETE" },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Workflows – History / Versioning / Cloning
+// ---------------------------------------------------------------------------
+
+export function getWorkflowHistory(workflowId: string): Promise<Workflow[]> {
+  return request<Workflow[]>(`/workflows/${workflowId}/history`);
+}
+
+export function getWorkflowVersion(
+  workflowId: string,
+  version: number,
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${workflowId}/history/${version}`);
+}
+
+export function cloneWorkflow(id: string): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/clone`, { method: "POST" });
+}
+
+// ---------------------------------------------------------------------------
+// Executions (task-level routes)
+// ---------------------------------------------------------------------------
+
 export function listExecutions(status?: string): Promise<WorkflowExecution[]> {
   const params = status ? `?status=${encodeURIComponent(status)}` : "";
   return request<WorkflowExecution[]>(`/tasks/executions${params}`);
@@ -101,7 +168,19 @@ export function cancelExecution(id: string): Promise<WorkflowExecution> {
   });
 }
 
+export function compareExecutions(
+  idA: string,
+  idB: string,
+): Promise<ExecutionComparison> {
+  return request<ExecutionComparison>(
+    `/tasks/executions/compare?ids=${encodeURIComponent(`${idA},${idB}`)}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Analytics
+// ---------------------------------------------------------------------------
+
 export function getAnalyticsSummary(days = 30): Promise<AnalyticsSummary> {
   return request<AnalyticsSummary>(`/analytics/summary?days=${days}`);
 }

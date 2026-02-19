@@ -92,3 +92,34 @@ export interface TimelineBucket {
   completed: number;
   failed: number;
 }
+
+export interface TagsPayload {
+  tags: string[];
+}
+
+export interface TaskComparison {
+  task_id: string;
+  status_a: string;
+  status_b: string;
+  duration_diff_ms: number | null;
+}
+
+export interface ComparisonSummary {
+  improved_count: number;
+  regressed_count: number;
+  unchanged_count: number;
+}
+
+export interface ExecutionComparison {
+  workflow_id: string;
+  executions: WorkflowExecution[];
+  task_comparison: TaskComparison[];
+  summary: ComparisonSummary;
+}
+
+export interface WorkflowUpdatePayload {
+  name?: string;
+  description?: string;
+  tags?: string[];
+  schedule?: string | null;
+}
