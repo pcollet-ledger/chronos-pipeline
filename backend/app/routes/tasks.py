@@ -1,7 +1,7 @@
 """Task-level endpoints for monitoring individual task executions.
 
-Includes listing, detail retrieval, retry, and cancellation of
-workflow executions.
+Includes listing, detail retrieval, retry, cancellation, and comparison
+of workflow executions.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from ..models import WorkflowExecution, WorkflowStatus
+from ..models import ExecutionComparison, WorkflowExecution, WorkflowStatus
 from ..services import workflow_engine
 
 router = APIRouter()
@@ -19,6 +19,37 @@ ExecutionIdPath = Annotated[
     str,
     Path(description="Unique execution identifier"),
 ]
+
+
+@router.get("/executions/compare", response_model=ExecutionComparison)
+async def compare_executions(
+    ids: Annotated[
+        str,
+        Query(description="Comma-separated pair of execution IDs to compare"),
+    ],
+) -> ExecutionComparison:
+    """Compare two executions of the same workflow side-by-side.
+
+    Args:
+        ids: Comma-separated execution IDs (exactly two).
+
+    Returns:
+        A comparison with task-level diffs and summary counts.
+
+    Raises:
+        HTTPException: 400 if IDs are malformed or executions belong to
+            different workflows.
+    """
+    parts = [p.strip() for p in ids.split(",") if p.strip()]
+    if len(parts) != 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Exactly two comma-separated execution IDs are required",
+        )
+    try:
+        return workflow_engine.compare_executions(parts[0], parts[1])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/executions", response_model=List[WorkflowExecution])

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import WorkflowList from "./components/WorkflowList";
+import WorkflowDetail from "./components/WorkflowDetail";
+import ExecutionComparisonView from "./components/ExecutionComparisonView";
 import ErrorBanner from "./components/ErrorBanner";
 import type { AnalyticsSummary, Workflow } from "./types";
 import { getAnalyticsSummary, listWorkflows } from "./services/api";
 
-type View = "dashboard" | "workflows";
+type View = "dashboard" | "workflows" | "workflow-detail" | "compare";
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
@@ -13,17 +15,23 @@ export default function App() {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const refresh = async () => {
     try {
       setError(null);
       setLoading(true);
       const [wfs, stats] = await Promise.all([
-        listWorkflows(),
+        listWorkflows(searchQuery ? { search: searchQuery } : undefined),
         getAnalyticsSummary(),
       ]);
       setWorkflows(wfs);
       setAnalytics(stats);
+      if (selectedWorkflow) {
+        const updated = wfs.find((w) => w.id === selectedWorkflow.id);
+        if (updated) setSelectedWorkflow(updated);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -33,7 +41,19 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  const handleSelectWorkflow = (wf: Workflow) => {
+    setSelectedWorkflow(wf);
+    setView("workflow-detail");
+  };
+
+  const navItems: Array<{ key: View; label: string }> = [
+    { key: "dashboard", label: "dashboard" },
+    { key: "workflows", label: "workflows" },
+    { key: "compare", label: "compare" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f172a" }}>
@@ -50,26 +70,47 @@ export default function App() {
           Chronos Pipeline
         </h1>
         <nav style={{ display: "flex", gap: "12px" }}>
-          {(["dashboard", "workflows"] as const).map((v) => (
+          {navItems.map((item) => (
             <button
-              key={v}
-              onClick={() => setView(v)}
+              key={item.key}
+              onClick={() => setView(item.key)}
               style={{
                 padding: "6px 16px",
                 borderRadius: "6px",
                 border: "none",
                 cursor: "pointer",
-                background: view === v ? "#1e40af" : "transparent",
-                color: view === v ? "#fff" : "#94a3b8",
-                fontWeight: view === v ? 600 : 400,
+                background: view === item.key ? "#1e40af" : "transparent",
+                color: view === item.key ? "#fff" : "#94a3b8",
+                fontWeight: view === item.key ? 600 : 400,
                 fontSize: "14px",
                 textTransform: "capitalize",
               }}
             >
-              {v}
+              {item.label}
             </button>
           ))}
         </nav>
+
+        {view === "workflows" && (
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search workflows..."
+            data-testid="search-input"
+            style={{
+              padding: "6px 12px",
+              borderRadius: "6px",
+              border: "1px solid #334155",
+              background: "#1e293b",
+              color: "#e2e8f0",
+              fontSize: "13px",
+              outline: "none",
+              width: "200px",
+            }}
+          />
+        )}
+
         <button
           onClick={() => void refresh()}
           style={{
@@ -110,7 +151,18 @@ export default function App() {
             workflows={workflows}
             onRefresh={() => void refresh()}
             loading={loading}
+            onSelect={handleSelectWorkflow}
           />
+        )}
+        {view === "workflow-detail" && selectedWorkflow && (
+          <WorkflowDetail
+            workflow={selectedWorkflow}
+            onBack={() => setView("workflows")}
+            onRefresh={() => void refresh()}
+          />
+        )}
+        {view === "compare" && (
+          <ExecutionComparisonView onBack={() => setView("dashboard")} />
         )}
       </main>
     </div>
