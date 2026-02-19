@@ -1,12 +1,12 @@
 """Task-level endpoints for monitoring individual task executions.
 
-Includes listing, detail retrieval, retry, and cancellation of
-workflow executions.
+Includes listing, detail retrieval, retry, cancellation, and
+comparison of workflow executions.
 """
 
 from __future__ import annotations
 
-from typing import Annotated, List
+from typing import Annotated, Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
@@ -19,6 +19,35 @@ ExecutionIdPath = Annotated[
     str,
     Path(description="Unique execution identifier"),
 ]
+
+
+@router.get("/executions/compare", response_model=Dict[str, Any])
+async def compare_executions(
+    ids: Annotated[
+        str,
+        Query(description="Comma-separated pair of execution IDs to compare"),
+    ],
+) -> Dict[str, Any]:
+    """Compare two executions of the same workflow side-by-side.
+
+    Args:
+        ids: Comma-separated execution IDs (exactly 2).
+
+    Returns:
+        A comparison dict with task-level diffs and summary.
+
+    Raises:
+        HTTPException: 400 if IDs are invalid or belong to different workflows.
+        HTTPException: 404 if any execution is not found.
+    """
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    try:
+        result = workflow_engine.compare_executions(id_list)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if result is None:
+        raise HTTPException(status_code=404, detail="One or both executions not found")
+    return result
 
 
 @router.get("/executions", response_model=List[WorkflowExecution])

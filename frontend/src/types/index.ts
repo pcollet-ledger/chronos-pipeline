@@ -40,6 +40,7 @@ export interface Workflow {
   tasks: TaskDefinition[];
   schedule: string | null;
   tags: string[];
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -91,4 +92,31 @@ export interface TimelineBucket {
   total: number;
   completed: number;
   failed: number;
+}
+
+export interface ExecutionComparison {
+  workflow_id: string;
+  executions: [WorkflowExecution, WorkflowExecution];
+  task_comparison: Array<{
+    task_id: string;
+    status_a: string;
+    status_b: string;
+    duration_diff_ms: number;
+  }>;
+  summary: {
+    improved_count: number;
+    regressed_count: number;
+    unchanged_count: number;
+  };
+}
+
+export interface WorkflowStats {
+  workflow_id: string;
+  total_executions: number;
+  completed: number;
+  failed: number;
+  success_rate: number;
+  avg_duration_ms: number;
+  min_duration_ms: number;
+  max_duration_ms: number;
 }

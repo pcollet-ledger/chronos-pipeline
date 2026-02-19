@@ -69,6 +69,7 @@ class WorkflowDefinition(BaseModel):
     tasks: List[TaskDefinition] = Field(default_factory=list)
     schedule: Optional[str] = None  # Cron expression
     tags: List[str] = Field(default_factory=list)
+    version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
