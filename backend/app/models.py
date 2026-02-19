@@ -69,6 +69,7 @@ class WorkflowDefinition(BaseModel):
     tasks: List[TaskDefinition] = Field(default_factory=list)
     schedule: Optional[str] = None  # Cron expression
     tags: List[str] = Field(default_factory=list)
+    version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -129,6 +130,34 @@ class BulkDeleteResponse(BaseModel):
     not_found: int = 0
     deleted_ids: List[str] = Field(default_factory=list)
     not_found_ids: List[str] = Field(default_factory=list)
+
+
+class TagsRequest(BaseModel):
+    """Request body for adding tags to a workflow."""
+    tags: List[str] = Field(..., min_length=1, description="Tags to add.")
+
+
+class TaskComparisonItem(BaseModel):
+    """Side-by-side comparison of a single task across two executions."""
+    task_id: str
+    status_a: str
+    status_b: str
+    duration_diff_ms: Optional[int] = None
+
+
+class ComparisonSummary(BaseModel):
+    """Aggregate counts for an execution comparison."""
+    improved_count: int = 0
+    regressed_count: int = 0
+    unchanged_count: int = 0
+
+
+class ExecutionComparison(BaseModel):
+    """Full comparison result for two executions of the same workflow."""
+    workflow_id: str
+    executions: List[WorkflowExecution] = Field(default_factory=list)
+    task_comparison: List[TaskComparisonItem] = Field(default_factory=list)
+    summary: ComparisonSummary = Field(default_factory=ComparisonSummary)
 
 
 class AnalyticsSummary(BaseModel):
