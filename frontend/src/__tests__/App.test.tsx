@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import App from "../App";
 
-// Mock the API module
 vi.mock("../services/api", () => ({
   listWorkflows: vi.fn().mockResolvedValue([]),
   getAnalyticsSummary: vi.fn().mockResolvedValue({

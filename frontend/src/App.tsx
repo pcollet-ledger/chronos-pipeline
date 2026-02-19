@@ -1,52 +1,52 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import WorkflowList from "./components/WorkflowList";
 import ErrorBanner from "./components/ErrorBanner";
-import type { AnalyticsSummary, Workflow } from "./types";
-import { getAnalyticsSummary, listWorkflows } from "./services/api";
+import ThemeToggle from "./components/ThemeToggle";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { useWorkflows } from "./hooks/useWorkflows";
+import { useAnalytics } from "./hooks/useAnalytics";
 
 type View = "dashboard" | "workflows";
 
-export default function App() {
+function AppContent() {
   const [view, setView] = useState<View>("dashboard");
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { colors } = useTheme();
 
-  const refresh = async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      const [wfs, stats] = await Promise.all([
-        listWorkflows(),
-        getAnalyticsSummary(),
-      ]);
-      setWorkflows(wfs);
-      setAnalytics(stats);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: workflows,
+    loading: wfLoading,
+    error: wfError,
+    refetch: refetchWorkflows,
+  } = useWorkflows();
 
-  useEffect(() => {
-    void refresh();
-  }, []);
+  const {
+    data: analytics,
+    loading: analyticsLoading,
+    error: analyticsError,
+    refetch: refetchAnalytics,
+  } = useAnalytics();
+
+  const error = wfError || analyticsError;
+  const loading = wfLoading || analyticsLoading;
+
+  const refresh = useCallback(() => {
+    refetchWorkflows();
+    refetchAnalytics();
+  }, [refetchWorkflows, refetchAnalytics]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a" }}>
+    <div style={{ minHeight: "100vh", background: colors.bg, color: colors.text }}>
       <header
         style={{
           padding: "16px 32px",
-          borderBottom: "1px solid #1e293b",
+          borderBottom: `1px solid ${colors.border}`,
           display: "flex",
           alignItems: "center",
           gap: "24px",
         }}
       >
-        <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#38bdf8" }}>
+        <h1 style={{ fontSize: "20px", fontWeight: 700, color: colors.accent }}>
           Chronos Pipeline
         </h1>
         <nav style={{ display: "flex", gap: "12px" }}>
@@ -59,8 +59,8 @@ export default function App() {
                 borderRadius: "6px",
                 border: "none",
                 cursor: "pointer",
-                background: view === v ? "#1e40af" : "transparent",
-                color: view === v ? "#fff" : "#94a3b8",
+                background: view === v ? colors.navActiveBg : "transparent",
+                color: view === v ? colors.navActive : colors.textMuted,
                 fontWeight: view === v ? 600 : 400,
                 fontSize: "14px",
                 textTransform: "capitalize",
@@ -70,21 +70,23 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <button
-          onClick={() => void refresh()}
-          style={{
-            marginLeft: "auto",
-            padding: "6px 16px",
-            borderRadius: "6px",
-            border: "1px solid #334155",
-            background: "transparent",
-            color: "#94a3b8",
-            cursor: "pointer",
-            fontSize: "13px",
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" }}>
+          <ThemeToggle />
+          <button
+            onClick={refresh}
+            style={{
+              padding: "6px 16px",
+              borderRadius: "6px",
+              border: `1px solid ${colors.border}`,
+              background: "transparent",
+              color: colors.textMuted,
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </header>
 
       <main
@@ -97,8 +99,8 @@ export default function App() {
         {error && (
           <ErrorBanner
             message={error}
-            onDismiss={() => setError(null)}
-            onRetry={() => void refresh()}
+            onDismiss={() => {}}
+            onRetry={refresh}
           />
         )}
 
@@ -107,12 +109,20 @@ export default function App() {
         )}
         {view === "workflows" && (
           <WorkflowList
-            workflows={workflows}
-            onRefresh={() => void refresh()}
+            workflows={workflows ?? []}
+            onRefresh={refresh}
             loading={loading}
           />
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
