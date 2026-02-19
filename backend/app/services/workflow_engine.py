@@ -1,12 +1,14 @@
 """Workflow execution engine with dependency resolution.
 
 Provides CRUD operations for workflow definitions, execution with
-topological ordering, retry of failed executions, cancellation, and
-secondary indexes for efficient filtered queries.
+topological ordering, retry of failed executions, cancellation,
+versioning, cloning, dry-run, comparison, search, tag management,
+and secondary indexes for efficient filtered queries.
 """
 
 from __future__ import annotations
 
+import copy
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, TypedDict, Union
@@ -56,6 +58,7 @@ _ActionHandler = Callable[[Dict[str, Any]], ActionOutput]
 # ---------------------------------------------------------------------------
 _workflows: Dict[str, WorkflowDefinition] = {}
 _executions: Dict[str, WorkflowExecution] = {}
+_workflow_versions: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
 
 # Secondary indexes for efficient filtered queries
 _workflow_tag_index: Dict[str, Set[str]] = defaultdict(set)
@@ -165,22 +168,27 @@ def get_workflow(workflow_id: str) -> Optional[WorkflowDefinition]:
 
 def list_workflows(
     tag: Optional[str] = None,
+    search: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
 ) -> List[WorkflowDefinition]:
-    """List workflows with optional tag filtering.
+    """List workflows with optional tag and search filtering.
 
     Uses secondary indexes when a tag filter is provided for O(1) lookup
     instead of scanning all workflows.
 
     Args:
         tag: Optional tag to filter by.
+        search: Optional case-insensitive name substring filter.
         limit: Maximum number of results.
         offset: Number of results to skip.
 
     Returns:
         A list of matching workflow definitions.
     """
+    if search:
+        return search_workflows(query=search, tag=tag, limit=limit, offset=offset)
+
     if tag:
         wf_ids = _workflow_tag_index.get(tag, set())
         results = [_workflows[wid] for wid in wf_ids if wid in _workflows]
@@ -193,7 +201,10 @@ def list_workflows(
 def update_workflow(
     workflow_id: str, data: WorkflowUpdate
 ) -> Optional[WorkflowDefinition]:
-    """Update an existing workflow.
+    """Update an existing workflow, incrementing its version.
+
+    A snapshot of the pre-update state is stored in the version history
+    so that previous versions can be retrieved later.
 
     Args:
         workflow_id: The ID of the workflow to update.
@@ -205,10 +216,15 @@ def update_workflow(
     workflow = _workflows.get(workflow_id)
     if not workflow:
         return None
+
+    # Store a snapshot of the current version before mutating
+    _workflow_versions[workflow_id].append(workflow.model_dump())
+
     _unindex_workflow(workflow)
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(workflow, key, value)
+    workflow.version += 1
     workflow.updated_at = datetime.utcnow()
     _workflows[workflow_id] = workflow
     _index_workflow(workflow)
@@ -594,10 +610,282 @@ def _run_action(action: str, parameters: Dict[str, Any]) -> ActionOutput:
     return handler(parameters)
 
 
+# ---------------------------------------------------------------------------
+# Versioning
+# ---------------------------------------------------------------------------
+
+def get_workflow_history(workflow_id: str) -> Optional[List[Dict[str, Any]]]:
+    """Return all previous version snapshots, newest first.
+
+    Args:
+        workflow_id: The workflow to get history for.
+
+    Returns:
+        A list of version snapshots, or ``None`` if the workflow
+        does not exist.
+    """
+    if workflow_id not in _workflows:
+        return None
+    return list(reversed(_workflow_versions.get(workflow_id, [])))
+
+
+def get_workflow_version(
+    workflow_id: str, version: int
+) -> Optional[Dict[str, Any]]:
+    """Return a specific version snapshot.
+
+    Args:
+        workflow_id: The workflow to look up.
+        version: The version number to retrieve.
+
+    Returns:
+        The snapshot dict, or ``None`` if not found.
+    """
+    if workflow_id not in _workflows:
+        return None
+    for snap in _workflow_versions.get(workflow_id, []):
+        if snap.get("version") == version:
+            return snap
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Cloning
+# ---------------------------------------------------------------------------
+
+def clone_workflow(workflow_id: str) -> Optional[WorkflowDefinition]:
+    """Deep-copy a workflow with a new ID and ' (copy)' appended to name.
+
+    Args:
+        workflow_id: The ID of the workflow to clone.
+
+    Returns:
+        The cloned workflow, or ``None`` if the original was not found.
+    """
+    original = _workflows.get(workflow_id)
+    if original is None:
+        return None
+
+    data = original.model_dump()
+    data.pop("id", None)
+    data.pop("created_at", None)
+    data.pop("updated_at", None)
+    data.pop("version", None)
+    data["name"] = original.name + " (copy)"
+    # Deep-copy tasks so mutations are independent
+    data["tasks"] = copy.deepcopy(data["tasks"])
+
+    cloned = WorkflowDefinition(**data)
+    _workflows[cloned.id] = cloned
+    _index_workflow(cloned)
+    return cloned
+
+
+# ---------------------------------------------------------------------------
+# Dry-run
+# ---------------------------------------------------------------------------
+
+def dry_run_workflow(workflow_id: str) -> Optional[WorkflowExecution]:
+    """Simulate executing a workflow without running actions.
+
+    The execution is NOT stored in the executions registry.
+
+    Args:
+        workflow_id: The workflow to dry-run.
+
+    Returns:
+        A ``WorkflowExecution`` with simulated results, or ``None``
+        if the workflow was not found.
+    """
+    workflow = _workflows.get(workflow_id)
+    if workflow is None:
+        return None
+
+    execution = WorkflowExecution(
+        workflow_id=workflow_id,
+        status=WorkflowStatus.COMPLETED,
+        started_at=datetime.utcnow(),
+        trigger="dry_run",
+    )
+
+    ordered_tasks = _topological_sort(workflow.tasks)
+    for task in ordered_tasks:
+        execution.task_results.append(TaskResult(
+            task_id=task.id,
+            status=WorkflowStatus.COMPLETED,
+            started_at=execution.started_at,
+            completed_at=execution.started_at,
+            output={"dry_run": True},
+            duration_ms=0,
+        ))
+
+    execution.completed_at = datetime.utcnow()
+    return execution
+
+
+# ---------------------------------------------------------------------------
+# Comparison
+# ---------------------------------------------------------------------------
+
+def compare_executions(
+    exec_id_a: str, exec_id_b: str
+) -> Optional[Dict[str, Any]]:
+    """Compare two executions of the same workflow side-by-side.
+
+    Args:
+        exec_id_a: First execution ID.
+        exec_id_b: Second execution ID.
+
+    Returns:
+        A comparison dict, or ``None`` if either execution is missing.
+
+    Raises:
+        ValueError: If the executions belong to different workflows.
+    """
+    ex_a = _executions.get(exec_id_a)
+    ex_b = _executions.get(exec_id_b)
+    if ex_a is None or ex_b is None:
+        return None
+
+    if ex_a.workflow_id != ex_b.workflow_id:
+        raise ValueError("Executions belong to different workflows")
+
+    results_a = {tr.task_id: tr for tr in ex_a.task_results}
+    results_b = {tr.task_id: tr for tr in ex_b.task_results}
+    all_task_ids = list(dict.fromkeys(
+        list(results_a.keys()) + list(results_b.keys())
+    ))
+
+    task_comparison: List[Dict[str, Any]] = []
+    improved = regressed = unchanged = 0
+
+    for tid in all_task_ids:
+        tr_a = results_a.get(tid)
+        tr_b = results_b.get(tid)
+        status_a = tr_a.status.value if tr_a else None
+        status_b = tr_b.status.value if tr_b else None
+        dur_a = tr_a.duration_ms if tr_a else None
+        dur_b = tr_b.duration_ms if tr_b else None
+        dur_diff = None
+        if dur_a is not None and dur_b is not None:
+            dur_diff = dur_b - dur_a
+
+        task_comparison.append({
+            "task_id": tid,
+            "status_a": status_a,
+            "status_b": status_b,
+            "duration_diff_ms": dur_diff,
+        })
+
+        if status_a == "failed" and status_b == "completed":
+            improved += 1
+        elif status_a == "completed" and status_b == "failed":
+            regressed += 1
+        elif status_a == status_b:
+            unchanged += 1
+
+    return {
+        "workflow_id": ex_a.workflow_id,
+        "executions": [ex_a, ex_b],
+        "task_comparison": task_comparison,
+        "summary": {
+            "improved_count": improved,
+            "regressed_count": regressed,
+            "unchanged_count": unchanged,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+
+def search_workflows(
+    query: str,
+    tag: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> List[WorkflowDefinition]:
+    """Search workflows by name substring (case-insensitive).
+
+    Args:
+        query: The search string.
+        tag: Optional tag filter applied in addition to search.
+        limit: Maximum number of results.
+        offset: Number of results to skip.
+
+    Returns:
+        Matching workflows sorted by updated_at descending.
+    """
+    q = query.lower()
+    if tag:
+        wf_ids = _workflow_tag_index.get(tag, set())
+        candidates = [_workflows[wid] for wid in wf_ids if wid in _workflows]
+    else:
+        candidates = list(_workflows.values())
+
+    results = [wf for wf in candidates if q in wf.name.lower()]
+    results.sort(key=lambda w: w.updated_at, reverse=True)
+    return results[offset: offset + limit]
+
+
+# ---------------------------------------------------------------------------
+# Tag management
+# ---------------------------------------------------------------------------
+
+def add_tags(workflow_id: str, tags: List[str]) -> Optional[WorkflowDefinition]:
+    """Add tags to a workflow (idempotent for duplicates).
+
+    Args:
+        workflow_id: The workflow to tag.
+        tags: Tags to add.
+
+    Returns:
+        The updated workflow, or ``None`` if not found.
+    """
+    workflow = _workflows.get(workflow_id)
+    if workflow is None:
+        return None
+
+    _unindex_workflow(workflow)
+    existing = set(workflow.tags)
+    for tag in tags:
+        if tag not in existing:
+            workflow.tags.append(tag)
+            existing.add(tag)
+    _index_workflow(workflow)
+    return workflow
+
+
+def remove_tag(workflow_id: str, tag: str) -> Optional[bool]:
+    """Remove a specific tag from a workflow.
+
+    Args:
+        workflow_id: The workflow to modify.
+        tag: The tag to remove.
+
+    Returns:
+        ``True`` if the tag was removed, ``False`` if the tag was not
+        present, or ``None`` if the workflow was not found.
+    """
+    workflow = _workflows.get(workflow_id)
+    if workflow is None:
+        return None
+
+    if tag not in workflow.tags:
+        return False
+
+    _unindex_workflow(workflow)
+    workflow.tags = [t for t in workflow.tags if t != tag]
+    _index_workflow(workflow)
+    return True
+
+
 def clear_all() -> None:
-    """Clear all workflows, executions, and indexes (for testing)."""
+    """Clear all workflows, executions, versions, and indexes (for testing)."""
     _workflows.clear()
     _executions.clear()
+    _workflow_versions.clear()
     _workflow_tag_index.clear()
     _execution_status_index.clear()
     _execution_workflow_index.clear()
