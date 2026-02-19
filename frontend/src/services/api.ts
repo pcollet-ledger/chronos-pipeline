@@ -1,6 +1,7 @@
 import type {
   AnalyticsSummary,
   BulkDeleteResponse,
+  ExecutionComparison,
   TimelineBucket,
   Workflow,
   WorkflowCreatePayload,
@@ -23,9 +24,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Workflows
-export function listWorkflows(tag?: string): Promise<Workflow[]> {
-  const params = tag ? `?tag=${encodeURIComponent(tag)}` : "";
-  return request<Workflow[]>(`/workflows/${params}`);
+export function listWorkflows(
+  tag?: string,
+  search?: string,
+  limit?: number,
+  offset?: number,
+): Promise<Workflow[]> {
+  const parts: string[] = [];
+  if (tag) parts.push(`tag=${encodeURIComponent(tag)}`);
+  if (search) parts.push(`search=${encodeURIComponent(search)}`);
+  if (limit !== undefined) parts.push(`limit=${limit}`);
+  if (offset !== undefined) parts.push(`offset=${offset}`);
+  const qs = parts.length ? `?${parts.join("&")}` : "";
+  return request<Workflow[]>(`/workflows/${qs}`);
 }
 
 export function getWorkflow(id: string): Promise<Workflow> {
@@ -80,9 +91,19 @@ export function listWorkflowExecutions(
 }
 
 // Executions
-export function listExecutions(status?: string): Promise<WorkflowExecution[]> {
-  const params = status ? `?status=${encodeURIComponent(status)}` : "";
-  return request<WorkflowExecution[]>(`/tasks/executions${params}`);
+export function listExecutions(
+  workflowId?: string,
+  status?: string,
+  limit?: number,
+  offset?: number,
+): Promise<WorkflowExecution[]> {
+  const parts: string[] = [];
+  if (workflowId) parts.push(`workflow_id=${encodeURIComponent(workflowId)}`);
+  if (status) parts.push(`status=${encodeURIComponent(status)}`);
+  if (limit !== undefined) parts.push(`limit=${limit}`);
+  if (offset !== undefined) parts.push(`offset=${offset}`);
+  const qs = parts.length ? `?${parts.join("&")}` : "";
+  return request<WorkflowExecution[]>(`/tasks/executions${qs}`);
 }
 
 export function getExecution(id: string): Promise<WorkflowExecution> {
@@ -99,6 +120,64 @@ export function cancelExecution(id: string): Promise<WorkflowExecution> {
   return request<WorkflowExecution>(`/tasks/executions/${id}/cancel`, {
     method: "POST",
   });
+}
+
+// Cloning
+export function cloneWorkflow(id: string): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/clone`, { method: "POST" });
+}
+
+// Versioning
+export function getWorkflowHistory(
+  id: string,
+): Promise<Record<string, unknown>[]> {
+  return request<Record<string, unknown>[]>(`/workflows/${id}/history`);
+}
+
+export function getWorkflowVersion(
+  id: string,
+  version: number,
+): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(
+    `/workflows/${id}/history/${version}`,
+  );
+}
+
+// Tagging
+export function addWorkflowTags(
+  id: string,
+  tags: string[],
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/tags`, {
+    method: "POST",
+    body: JSON.stringify({ tags }),
+  });
+}
+
+export function removeWorkflowTag(
+  id: string,
+  tag: string,
+): Promise<Workflow> {
+  return request<Workflow>(`/workflows/${id}/tags/${encodeURIComponent(tag)}`, {
+    method: "DELETE",
+  });
+}
+
+// Dry-run
+export function dryRunWorkflow(id: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/workflows/${id}/dry-run`, {
+    method: "POST",
+  });
+}
+
+// Comparison
+export function compareExecutions(
+  idA: string,
+  idB: string,
+): Promise<ExecutionComparison> {
+  return request<ExecutionComparison>(
+    `/tasks/executions/compare?ids=${encodeURIComponent(idA)},${encodeURIComponent(idB)}`,
+  );
 }
 
 // Analytics
