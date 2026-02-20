@@ -171,3 +171,16 @@ class ExecutionComparison(BaseModel):
     summary: ExecutionComparisonSummary = Field(
         default_factory=ExecutionComparisonSummary,
     )
+
+
+class WorkflowVersionSnapshot(BaseModel):
+    """Snapshot of a workflow at a specific version."""
+    id: str
+    name: str
+    description: str = ""
+    tasks: List[TaskDefinition] = Field(default_factory=list)
+    schedule: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    version: int
+    created_at: datetime
+    updated_at: datetime

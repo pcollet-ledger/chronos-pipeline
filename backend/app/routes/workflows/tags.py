@@ -8,13 +8,9 @@ from fastapi import APIRouter, HTTPException, Path
 
 from ...models import TagsRequest, WorkflowDefinition
 from ...services import workflow_engine
+from .params import WorkflowIdPath
 
 router = APIRouter()
-
-WorkflowIdPath = Annotated[
-    str,
-    Path(description="Unique workflow identifier"),
-]
 
 
 @router.post("/{workflow_id}/tags", response_model=WorkflowDefinition)
