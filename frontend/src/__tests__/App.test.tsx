@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "../App";
 import { ThemeProvider } from "../contexts/ThemeContext";
 
@@ -30,12 +30,16 @@ vi.mock("../services/api", () => ({
   }),
 }));
 
-function renderApp() {
-  return render(
+async function renderApp() {
+  const result = render(
     <ThemeProvider>
       <App />
     </ThemeProvider>,
   );
+  await waitFor(() => {
+    expect(screen.getByText("Chronos Pipeline")).toBeDefined();
+  });
+  return result;
 }
 
 describe("App", () => {
@@ -43,29 +47,29 @@ describe("App", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the header with Chronos Pipeline title", () => {
-    renderApp();
+  it("renders the header with Chronos Pipeline title", async () => {
+    await renderApp();
     expect(screen.getByText("Chronos Pipeline")).toBeDefined();
   });
 
-  it("renders navigation buttons", () => {
-    renderApp();
+  it("renders navigation buttons", async () => {
+    await renderApp();
     expect(screen.getByText("dashboard")).toBeDefined();
     expect(screen.getByText("workflows")).toBeDefined();
   });
 
-  it("renders refresh button", () => {
-    renderApp();
+  it("renders refresh button", async () => {
+    await renderApp();
     expect(screen.getByText("Refresh")).toBeDefined();
   });
 
-  it("renders theme toggle button", () => {
-    renderApp();
+  it("renders theme toggle button", async () => {
+    await renderApp();
     expect(screen.getByTestId("theme-toggle")).toBeDefined();
   });
 
-  it("toggles theme when clicking the theme button", () => {
-    renderApp();
+  it("toggles theme when clicking the theme button", async () => {
+    await renderApp();
     const btn = screen.getByTestId("theme-toggle");
     const initialText = btn.textContent;
     fireEvent.click(btn);

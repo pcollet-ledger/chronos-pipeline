@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useWorkflows } from "../hooks/useWorkflows";
 import type { Workflow } from "../types";
 
@@ -29,9 +29,12 @@ describe("useWorkflows", () => {
     (api.listWorkflows as ReturnType<typeof vi.fn>).mockResolvedValue(mockWorkflows);
   });
 
-  it("starts with loading true", () => {
+  it("starts with loading true", async () => {
     const { result } = renderHook(() => useWorkflows());
     expect(result.current.loading).toBe(true);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it("loads workflows", async () => {
@@ -87,7 +90,9 @@ describe("useWorkflows", () => {
     expect(api.listWorkflows).toHaveBeenCalledTimes(1);
 
     (api.listWorkflows as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    result.current.refresh();
+    await act(async () => {
+      result.current.refresh();
+    });
     await waitFor(() => {
       expect(result.current.workflows).toEqual([]);
     });
@@ -139,7 +144,9 @@ describe("useWorkflows", () => {
       expect(result.current.error).toBe("fail");
     });
     (api.listWorkflows as ReturnType<typeof vi.fn>).mockResolvedValue(mockWorkflows);
-    result.current.refresh();
+    await act(async () => {
+      result.current.refresh();
+    });
     await waitFor(() => {
       expect(result.current.error).toBeNull();
     });

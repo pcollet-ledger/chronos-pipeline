@@ -33,9 +33,12 @@ describe("useExecutionPolling", () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it("starts loading when ID is provided", () => {
+  it("starts loading when ID is provided", async () => {
     const { result } = renderHook(() => useExecutionPolling("exec-1"));
     expect(result.current.loading).toBe(true);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it("fetches execution on mount", async () => {
