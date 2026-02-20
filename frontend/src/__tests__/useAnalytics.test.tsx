@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAnalytics } from "../hooks/useAnalytics";
 import type { AnalyticsSummary, TimelineBucket } from "../types";
 
@@ -31,9 +31,12 @@ describe("useAnalytics", () => {
     (api.getTimeline as ReturnType<typeof vi.fn>).mockResolvedValue(mockTimeline);
   });
 
-  it("starts with loading true", () => {
+  it("starts with loading true", async () => {
     const { result } = renderHook(() => useAnalytics());
     expect(result.current.loading).toBe(true);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it("loads summary and timeline", async () => {
@@ -89,7 +92,9 @@ describe("useAnalytics", () => {
     });
     const updatedSummary = { ...mockSummary, total_workflows: 10 };
     (api.getAnalyticsSummary as ReturnType<typeof vi.fn>).mockResolvedValue(updatedSummary);
-    result.current.refresh();
+    await act(async () => {
+      result.current.refresh();
+    });
     await waitFor(() => {
       expect(result.current.summary).toEqual(updatedSummary);
     });
@@ -103,14 +108,20 @@ describe("useAnalytics", () => {
     expect(typeof result.current.refresh).toBe("function");
   });
 
-  it("summary starts as null", () => {
+  it("summary starts as null", async () => {
     const { result } = renderHook(() => useAnalytics());
     expect(result.current.summary).toBeNull();
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
-  it("timeline starts as empty array", () => {
+  it("timeline starts as empty array", async () => {
     const { result } = renderHook(() => useAnalytics());
     expect(result.current.timeline).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it("clears error on successful refresh", async () => {
@@ -122,7 +133,9 @@ describe("useAnalytics", () => {
       expect(result.current.error).toBe("fail");
     });
     (api.getAnalyticsSummary as ReturnType<typeof vi.fn>).mockResolvedValue(mockSummary);
-    result.current.refresh();
+    await act(async () => {
+      result.current.refresh();
+    });
     await waitFor(() => {
       expect(result.current.error).toBeNull();
     });

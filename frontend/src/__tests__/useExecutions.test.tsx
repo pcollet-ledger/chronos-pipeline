@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useExecutions } from "../hooks/useExecutions";
 import type { WorkflowExecution } from "../types";
 
@@ -29,9 +29,12 @@ describe("useExecutions", () => {
     (api.listExecutions as ReturnType<typeof vi.fn>).mockResolvedValue(mockExecutions);
   });
 
-  it("starts with loading true", () => {
+  it("starts with loading true", async () => {
     const { result } = renderHook(() => useExecutions());
     expect(result.current.loading).toBe(true);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it("loads executions", async () => {
@@ -76,7 +79,9 @@ describe("useExecutions", () => {
       expect(result.current.loading).toBe(false);
     });
     (api.listExecutions as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    result.current.refresh();
+    await act(async () => {
+      result.current.refresh();
+    });
     await waitFor(() => {
       expect(result.current.executions).toEqual([]);
     });
@@ -113,14 +118,19 @@ describe("useExecutions", () => {
       expect(result.current.error).toBe("fail");
     });
     (api.listExecutions as ReturnType<typeof vi.fn>).mockResolvedValue(mockExecutions);
-    result.current.refresh();
+    await act(async () => {
+      result.current.refresh();
+    });
     await waitFor(() => {
       expect(result.current.error).toBeNull();
     });
   });
 
-  it("returns empty array initially", () => {
+  it("returns empty array initially", async () => {
     const { result } = renderHook(() => useExecutions());
     expect(result.current.executions).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 });
