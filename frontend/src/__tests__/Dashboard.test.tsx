@@ -1,7 +1,26 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Dashboard from "../components/Dashboard";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import type { AnalyticsSummary } from "../types";
+
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+function renderWithTheme(ui: React.ReactElement) {
+  return render(<ThemeProvider>{ui}</ThemeProvider>);
+}
 
 const mockAnalytics: AnalyticsSummary = {
   total_workflows: 5,
@@ -27,48 +46,48 @@ const mockAnalytics: AnalyticsSummary = {
 
 describe("Dashboard", () => {
   it("renders loading spinner when loading", () => {
-    render(<Dashboard analytics={null} loading={true} />);
+    renderWithTheme(<Dashboard analytics={null} loading={true} />);
     expect(screen.getByRole("status")).toBeDefined();
   });
 
   it("renders empty state when analytics is null and not loading", () => {
-    render(<Dashboard analytics={null} loading={false} />);
+    renderWithTheme(<Dashboard analytics={null} loading={false} />);
     expect(screen.getByText("No analytics data available yet.")).toBeDefined();
   });
 
   it("renders dashboard title", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getByText("Dashboard")).toBeDefined();
   });
 
   it("renders total workflows stat", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getByText("5")).toBeDefined();
   });
 
   it("renders total executions stat", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getByText("20")).toBeDefined();
   });
 
   it("renders success rate", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getByText("85%")).toBeDefined();
   });
 
   it("renders avg duration", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getByText("1.5s")).toBeDefined();
   });
 
   it("renders executions by status", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getAllByText(/completed/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/failed/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders recent executions table", () => {
-    render(<Dashboard analytics={mockAnalytics} />);
+    renderWithTheme(<Dashboard analytics={mockAnalytics} />);
     expect(screen.getByText("Recent Executions")).toBeDefined();
   });
 
@@ -77,19 +96,19 @@ describe("Dashboard", () => {
       ...mockAnalytics,
       recent_executions: [],
     };
-    render(<Dashboard analytics={emptyAnalytics} />);
+    renderWithTheme(<Dashboard analytics={emptyAnalytics} />);
     expect(screen.getByText("No executions yet")).toBeDefined();
   });
 
   it("renders with 100% success rate in green", () => {
     const perfect = { ...mockAnalytics, success_rate: 100 };
-    render(<Dashboard analytics={perfect} />);
+    renderWithTheme(<Dashboard analytics={perfect} />);
     expect(screen.getByText("100%")).toBeDefined();
   });
 
   it("renders with 0 duration", () => {
     const zeroDuration = { ...mockAnalytics, avg_duration_ms: 0 };
-    render(<Dashboard analytics={zeroDuration} />);
+    renderWithTheme(<Dashboard analytics={zeroDuration} />);
     expect(screen.getByText("0ms")).toBeDefined();
   });
 });

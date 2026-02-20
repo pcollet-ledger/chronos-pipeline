@@ -1,7 +1,26 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import TaskCard from "../components/TaskCard";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import type { TaskDefinition } from "../types";
+
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+function renderWithTheme(ui: React.ReactElement) {
+  return render(<ThemeProvider>{ui}</ThemeProvider>);
+}
 
 const sampleTask: TaskDefinition = {
   id: "task-1",
@@ -19,97 +38,97 @@ const sampleTask: TaskDefinition = {
 
 describe("TaskCard", () => {
   it("renders task name", () => {
-    render(<TaskCard task={sampleTask} />);
+    renderWithTheme(<TaskCard task={sampleTask} />);
     expect(screen.getByText("Validate Input")).toBeDefined();
   });
 
   it("renders action type", () => {
-    render(<TaskCard task={sampleTask} />);
+    renderWithTheme(<TaskCard task={sampleTask} />);
     expect(screen.getByText("validate")).toBeDefined();
   });
 
   it("renders priority", () => {
-    render(<TaskCard task={sampleTask} />);
+    renderWithTheme(<TaskCard task={sampleTask} />);
     expect(screen.getByText("high")).toBeDefined();
   });
 
   it("shows dependency count when present", () => {
     const taskWithDeps = { ...sampleTask, depends_on: ["dep-1", "dep-2"] };
-    render(<TaskCard task={taskWithDeps} />);
+    renderWithTheme(<TaskCard task={taskWithDeps} />);
     expect(screen.getByText("Deps: 2")).toBeDefined();
   });
 
   it("hides dependency count when empty", () => {
-    render(<TaskCard task={sampleTask} />);
+    renderWithTheme(<TaskCard task={sampleTask} />);
     expect(screen.queryByText(/Deps:/)).toBeNull();
   });
 
   it("shows pre-hook when set", () => {
     const taskWithPreHook = { ...sampleTask, pre_hook: "log" };
-    render(<TaskCard task={taskWithPreHook} />);
+    renderWithTheme(<TaskCard task={taskWithPreHook} />);
     expect(screen.getByText("log")).toBeDefined();
     expect(screen.getByText(/Pre-hook:/)).toBeDefined();
   });
 
   it("shows post-hook when set", () => {
     const taskWithPostHook = { ...sampleTask, post_hook: "notify" };
-    render(<TaskCard task={taskWithPostHook} />);
+    renderWithTheme(<TaskCard task={taskWithPostHook} />);
     expect(screen.getByText("notify")).toBeDefined();
     expect(screen.getByText(/Post-hook:/)).toBeDefined();
   });
 
   it("hides hook labels when hooks are null", () => {
-    render(<TaskCard task={sampleTask} />);
+    renderWithTheme(<TaskCard task={sampleTask} />);
     expect(screen.queryByText(/Pre-hook:/)).toBeNull();
     expect(screen.queryByText(/Post-hook:/)).toBeNull();
   });
 
   it("renders with low priority", () => {
     const lowTask = { ...sampleTask, priority: "low" as const };
-    render(<TaskCard task={lowTask} />);
+    renderWithTheme(<TaskCard task={lowTask} />);
     expect(screen.getByText("low")).toBeDefined();
   });
 
   it("renders with critical priority", () => {
     const criticalTask = { ...sampleTask, priority: "critical" as const };
-    render(<TaskCard task={criticalTask} />);
+    renderWithTheme(<TaskCard task={criticalTask} />);
     expect(screen.getByText("critical")).toBeDefined();
   });
 
   it("renders with medium priority", () => {
     const medTask = { ...sampleTask, priority: "medium" as const };
-    render(<TaskCard task={medTask} />);
+    renderWithTheme(<TaskCard task={medTask} />);
     expect(screen.getByText("medium")).toBeDefined();
   });
 
   it("renders with both hooks set", () => {
     const taskBothHooks = { ...sampleTask, pre_hook: "validate", post_hook: "notify" };
-    render(<TaskCard task={taskBothHooks} />);
+    renderWithTheme(<TaskCard task={taskBothHooks} />);
     expect(screen.getByText(/Pre-hook:/)).toBeDefined();
     expect(screen.getByText(/Post-hook:/)).toBeDefined();
   });
 
   it("handles task with empty description", () => {
     const taskNoDesc = { ...sampleTask, description: "" };
-    render(<TaskCard task={taskNoDesc} />);
+    renderWithTheme(<TaskCard task={taskNoDesc} />);
     expect(screen.getByText("Validate Input")).toBeDefined();
   });
 
   it("handles task with many dependencies", () => {
     const taskManyDeps = { ...sampleTask, depends_on: ["a", "b", "c", "d", "e"] };
-    render(<TaskCard task={taskManyDeps} />);
+    renderWithTheme(<TaskCard task={taskManyDeps} />);
     expect(screen.getByText("Deps: 5")).toBeDefined();
   });
 
   it("renders with empty parameters", () => {
     const taskNoParams = { ...sampleTask, parameters: {} };
-    render(<TaskCard task={taskNoParams} />);
+    renderWithTheme(<TaskCard task={taskNoParams} />);
     expect(screen.getByText("Validate Input")).toBeDefined();
   });
 
   it("renders with single dependency", () => {
     const taskOneDep = { ...sampleTask, depends_on: ["dep-1"] };
-    render(<TaskCard task={taskOneDep} />);
+    renderWithTheme(<TaskCard task={taskOneDep} />);
     expect(screen.getByText("Deps: 1")).toBeDefined();
   });
 });
