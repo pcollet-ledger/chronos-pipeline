@@ -1,6 +1,14 @@
 import { useState } from "react";
 import type { Workflow, WorkflowCreatePayload, WorkflowExecution } from "../types";
 import { createWorkflow, deleteWorkflow, executeWorkflow } from "../services/api";
+import { useTheme } from "../contexts/ThemeContext";
+import {
+  spacing,
+  fontSize,
+  fontWeight,
+  radii,
+  shadows,
+} from "../theme";
 import TaskCard from "./TaskCard";
 import WorkflowForm from "./WorkflowForm";
 import EmptyState from "./EmptyState";
@@ -14,6 +22,7 @@ interface Props {
 }
 
 export default function WorkflowList({ workflows, onRefresh, loading, onSelectWorkflow }: Props) {
+  const { theme } = useTheme();
   const [showForm, setShowForm] = useState(false);
   const [executionResult, setExecutionResult] =
     useState<WorkflowExecution | null>(null);
@@ -57,6 +66,19 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
     }
   };
 
+  function btnStyle(bg: string): React.CSSProperties {
+    return {
+      padding: `${spacing.sm} ${spacing.lg}`,
+      borderRadius: radii.md,
+      border: "none",
+      background: bg,
+      color: "#fff",
+      cursor: "pointer",
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.medium,
+    };
+  }
+
   return (
     <div>
       <div
@@ -64,22 +86,22 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "20px",
+          marginBottom: spacing.xl,
         }}
       >
-        <h2 style={{ fontSize: "18px", color: "#e2e8f0" }}>Pipelines</h2>
+        <h2 style={{ fontSize: fontSize.xxl, color: theme.text }}>Pipelines</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           data-testid="toggle-form-button"
           style={{
-            padding: "8px 20px",
-            borderRadius: "8px",
+            padding: `${spacing.sm} ${spacing.xl}`,
+            borderRadius: radii.lg,
             border: "none",
-            background: showForm ? "#334155" : "#2563eb",
+            background: showForm ? theme.surfaceHover : theme.primary,
             color: "#fff",
             cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "14px",
+            fontWeight: fontWeight.semibold,
+            fontSize: fontSize.lg,
           }}
         >
           {showForm ? "Cancel" : "New Pipeline"}
@@ -97,10 +119,10 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
       {showForm && (
         <div
           style={{
-            background: "#1e293b",
-            borderRadius: "12px",
-            padding: "20px",
-            marginBottom: "24px",
+            background: theme.surface,
+            borderRadius: radii.xl,
+            padding: spacing.xl,
+            marginBottom: spacing.xl,
           }}
         >
           <WorkflowForm
@@ -118,15 +140,15 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
         />
       ) : (
         <div
-          style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+          style={{ display: "flex", flexDirection: "column", gap: spacing.md }}
         >
           {workflows.map((wf) => (
             <div
               key={wf.id}
               style={{
-                background: "#1e293b",
-                borderRadius: "12px",
-                padding: "16px 20px",
+                background: theme.surface,
+                borderRadius: radii.xl,
+                padding: `${spacing.lg} ${spacing.xl}`,
               }}
             >
               <div
@@ -134,15 +156,15 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "8px",
+                  marginBottom: spacing.sm,
                 }}
               >
                 <div>
                   <h3
                     style={{
-                      fontSize: "16px",
-                      color: "#e2e8f0",
-                      fontWeight: 600,
+                      fontSize: fontSize.xl,
+                      color: theme.text,
+                      fontWeight: fontWeight.semibold,
                     }}
                   >
                     {wf.name}
@@ -150,34 +172,34 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                   {wf.description && (
                     <p
                       style={{
-                        fontSize: "13px",
-                        color: "#64748b",
-                        marginTop: "4px",
+                        fontSize: fontSize.md,
+                        color: theme.textMuted,
+                        marginTop: spacing.xs,
                       }}
                     >
                       {wf.description}
                     </p>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: spacing.sm }}>
                   {onSelectWorkflow && (
                     <button
                       onClick={() => onSelectWorkflow(wf.id)}
                       data-testid="view-workflow-btn"
-                      style={btnStyle("#2563eb")}
+                      style={btnStyle(theme.primary)}
                     >
                       View
                     </button>
                   )}
                   <button
                     onClick={() => handleExecute(wf.id)}
-                    style={btnStyle("#059669")}
+                    style={btnStyle(theme.success)}
                   >
                     Run
                   </button>
                   <button
                     onClick={() => handleDelete(wf.id)}
-                    style={btnStyle("#dc2626")}
+                    style={btnStyle(theme.danger)}
                   >
                     Delete
                   </button>
@@ -188,19 +210,19 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                 <div
                   style={{
                     display: "flex",
-                    gap: "6px",
-                    marginBottom: "8px",
+                    gap: spacing.sm,
+                    marginBottom: spacing.sm,
                   }}
                 >
                   {wf.tags.map((tag, idx) => (
                     <span
                       key={`${tag}-${idx}`}
                       style={{
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        background: "#334155",
-                        color: "#94a3b8",
-                        fontSize: "12px",
+                        padding: `2px ${spacing.sm}`,
+                        borderRadius: radii.sm,
+                        background: theme.tagBg,
+                        color: theme.tagText,
+                        fontSize: fontSize.sm,
                       }}
                     >
                       {tag}
@@ -210,12 +232,12 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
               )}
 
               {wf.tasks.length > 0 && (
-                <div style={{ marginTop: "12px" }}>
+                <div style={{ marginTop: spacing.md }}>
                   <div
                     style={{
-                      fontSize: "12px",
-                      color: "#64748b",
-                      marginBottom: "8px",
+                      fontSize: fontSize.sm,
+                      color: theme.textMuted,
+                      marginBottom: spacing.sm,
                     }}
                   >
                     {wf.tasks.length} task{wf.tasks.length !== 1 ? "s" : ""}
@@ -223,7 +245,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                   <div
                     style={{
                       display: "flex",
-                      gap: "8px",
+                      gap: spacing.sm,
                       flexWrap: "wrap",
                     }}
                   >
@@ -242,15 +264,15 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
         <div
           style={{
             position: "fixed",
-            bottom: "20px",
-            right: "20px",
+            bottom: spacing.xl,
+            right: spacing.xl,
             background:
               executionResult.status === "completed" ? "#064e3b" : "#7f1d1d",
             color: "#fff",
-            padding: "16px 20px",
-            borderRadius: "12px",
-            fontSize: "14px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            padding: `${spacing.lg} ${spacing.xl}`,
+            borderRadius: radii.xl,
+            fontSize: fontSize.lg,
+            boxShadow: shadows.lg,
             cursor: "pointer",
             maxWidth: "400px",
           }}
@@ -258,7 +280,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
         >
           <strong>Execution {executionResult.status}</strong>
           <div
-            style={{ fontSize: "12px", marginTop: "4px", opacity: 0.8 }}
+            style={{ fontSize: fontSize.sm, marginTop: spacing.xs, opacity: 0.8 }}
           >
             {executionResult.task_results.length} tasks completed · Click to
             dismiss
@@ -267,17 +289,4 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
       )}
     </div>
   );
-}
-
-function btnStyle(bg: string): React.CSSProperties {
-  return {
-    padding: "6px 14px",
-    borderRadius: "6px",
-    border: "none",
-    background: bg,
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: 500,
-  };
 }

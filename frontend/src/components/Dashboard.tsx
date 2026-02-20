@@ -1,4 +1,13 @@
 import type { AnalyticsSummary } from "../types";
+import { useTheme } from "../contexts/ThemeContext";
+import {
+  spacing,
+  fontSize,
+  fontWeight,
+  radii,
+  getStatusColor,
+  formatDuration,
+} from "../theme";
 import LoadingSpinner from "./LoadingSpinner";
 import EmptyState from "./EmptyState";
 
@@ -11,30 +20,36 @@ function StatCard({
   label,
   value,
   color,
+  surface,
+  textMuted,
 }: {
   label: string;
   value: string | number;
   color: string;
+  surface: string;
+  textMuted: string;
 }) {
   return (
     <div
       style={{
-        background: "#1e293b",
-        borderRadius: "12px",
-        padding: "20px",
+        background: surface,
+        borderRadius: radii.xl,
+        padding: spacing.xl,
         minWidth: "200px",
         flex: 1,
       }}
     >
-      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px" }}>
+      <div style={{ fontSize: fontSize.md, color: textMuted, marginBottom: spacing.sm }}>
         {label}
       </div>
-      <div style={{ fontSize: "28px", fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontSize: fontSize.h2, fontWeight: fontWeight.bold, color }}>{value}</div>
     </div>
   );
 }
 
 export default function Dashboard({ analytics, loading }: Props) {
+  const { theme } = useTheme();
+
   if (loading) {
     return <LoadingSpinner label="Loading analytics..." />;
   }
@@ -43,18 +58,10 @@ export default function Dashboard({ analytics, loading }: Props) {
     return <EmptyState message="No analytics data available yet." />;
   }
 
-  const statusColors: Record<string, string> = {
-    completed: "#22c55e",
-    failed: "#ef4444",
-    running: "#eab308",
-    pending: "#64748b",
-    cancelled: "#6b7280",
-  };
-
   return (
     <div>
       <h2
-        style={{ fontSize: "18px", marginBottom: "20px", color: "#e2e8f0" }}
+        style={{ fontSize: fontSize.xxl, marginBottom: spacing.xl, color: theme.text }}
       >
         Dashboard
       </h2>
@@ -62,51 +69,59 @@ export default function Dashboard({ analytics, loading }: Props) {
       <div
         style={{
           display: "flex",
-          gap: "16px",
+          gap: spacing.lg,
           flexWrap: "wrap",
-          marginBottom: "32px",
+          marginBottom: spacing.xxl,
         }}
       >
         <StatCard
           label="Pipelines"
           value={analytics.total_workflows}
-          color="#38bdf8"
+          color={theme.info}
+          surface={theme.surface}
+          textMuted={theme.textMuted}
         />
         <StatCard
           label="Executions"
           value={analytics.total_executions}
-          color="#a78bfa"
+          color={theme.accent}
+          surface={theme.surface}
+          textMuted={theme.textMuted}
         />
         <StatCard
           label="Success Rate"
           value={`${analytics.success_rate}%`}
-          color={analytics.success_rate >= 90 ? "#22c55e" : "#eab308"}
+          color={analytics.success_rate >= 90 ? theme.success : theme.warning}
+          surface={theme.surface}
+          textMuted={theme.textMuted}
         />
         <StatCard
           label="Avg Duration"
           value={formatDuration(analytics.avg_duration_ms)}
-          color="#f472b6"
+          color={theme.highlight}
+          surface={theme.surface}
+          textMuted={theme.textMuted}
         />
       </div>
 
       <div
         style={{
-          background: "#1e293b",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "24px",
+          background: theme.surface,
+          borderRadius: radii.xl,
+          padding: spacing.xl,
+          marginBottom: spacing.xl,
         }}
       >
         <h3
           style={{
-            fontSize: "14px",
-            color: "#94a3b8",
-            marginBottom: "16px",
+            fontSize: fontSize.lg,
+            color: theme.textMuted,
+            marginBottom: spacing.lg,
           }}
         >
           Executions by Status
         </h3>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: spacing.xl, flexWrap: "wrap" }}>
           {Object.entries(analytics.executions_by_status).map(
             ([status, count]) => (
               <div
@@ -114,21 +129,21 @@ export default function Dashboard({ analytics, loading }: Props) {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  gap: spacing.sm,
                 }}
               >
                 <div
                   style={{
                     width: "10px",
                     height: "10px",
-                    borderRadius: "50%",
-                    background: statusColors[status] ?? "#64748b",
+                    borderRadius: radii.full,
+                    background: getStatusColor(status),
                   }}
                 />
                 <span
                   style={{
-                    fontSize: "14px",
-                    color: "#cbd5e1",
+                    fontSize: fontSize.lg,
+                    color: theme.textSecondary,
                     textTransform: "capitalize",
                   }}
                 >
@@ -142,54 +157,54 @@ export default function Dashboard({ analytics, loading }: Props) {
 
       <div
         style={{
-          background: "#1e293b",
-          borderRadius: "12px",
-          padding: "20px",
+          background: theme.surface,
+          borderRadius: radii.xl,
+          padding: spacing.xl,
         }}
       >
         <h3
           style={{
-            fontSize: "14px",
-            color: "#94a3b8",
-            marginBottom: "16px",
+            fontSize: fontSize.lg,
+            color: theme.textMuted,
+            marginBottom: spacing.lg,
           }}
         >
           Recent Executions
         </h3>
         {analytics.recent_executions.length === 0 ? (
-          <div style={{ color: "#475569", fontSize: "14px" }}>
+          <div style={{ color: theme.textMuted, fontSize: fontSize.lg }}>
             No executions yet
           </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #334155" }}>
-                <th style={thStyle}>ID</th>
-                <th style={thStyle}>Status</th>
-                <th style={thStyle}>Trigger</th>
-                <th style={thStyle}>Started</th>
+              <tr style={{ borderBottom: `1px solid ${theme.tableBorder}` }}>
+                <th style={thStyle(theme.textMuted)}>ID</th>
+                <th style={thStyle(theme.textMuted)}>Status</th>
+                <th style={thStyle(theme.textMuted)}>Trigger</th>
+                <th style={thStyle(theme.textMuted)}>Started</th>
               </tr>
             </thead>
             <tbody>
               {analytics.recent_executions.map((ex) => (
                 <tr
                   key={ex.id}
-                  style={{ borderBottom: "1px solid #1e293b" }}
+                  style={{ borderBottom: `1px solid ${theme.borderSubtle}` }}
                 >
-                  <td style={tdStyle}>{ex.id.slice(0, 8)}...</td>
-                  <td style={tdStyle}>
+                  <td style={tdStyle(theme.textSecondary)}>{ex.id.slice(0, 8)}...</td>
+                  <td style={tdStyle(theme.textSecondary)}>
                     <span
                       style={{
-                        color: statusColors[ex.status] ?? "#64748b",
-                        fontWeight: 600,
+                        color: getStatusColor(ex.status),
+                        fontWeight: fontWeight.semibold,
                         textTransform: "capitalize",
                       }}
                     >
                       {ex.status}
                     </span>
                   </td>
-                  <td style={tdStyle}>{ex.trigger}</td>
-                  <td style={tdStyle}>
+                  <td style={tdStyle(theme.textSecondary)}>{ex.trigger}</td>
+                  <td style={tdStyle(theme.textSecondary)}>
                     {ex.started_at
                       ? new Date(ex.started_at).toLocaleString()
                       : "—"}
@@ -204,25 +219,21 @@ export default function Dashboard({ analytics, loading }: Props) {
   );
 }
 
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "8px 12px",
-  fontSize: "12px",
-  color: "#64748b",
-  fontWeight: 600,
-  textTransform: "uppercase",
-};
+function thStyle(color: string): React.CSSProperties {
+  return {
+    textAlign: "left",
+    padding: `${spacing.sm} ${spacing.md}`,
+    fontSize: fontSize.sm,
+    color,
+    fontWeight: fontWeight.semibold,
+    textTransform: "uppercase",
+  };
+}
 
-const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  fontSize: "14px",
-  color: "#cbd5e1",
-};
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  const sec = ms / 1000;
-  if (sec < 60) return `${sec.toFixed(1)}s`;
-  const min = sec / 60;
-  return `${min.toFixed(1)}m`;
+function tdStyle(color: string): React.CSSProperties {
+  return {
+    padding: `10px ${spacing.md}`,
+    fontSize: fontSize.lg,
+    color,
+  };
 }

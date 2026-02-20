@@ -1,7 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import WorkflowDetail from "../components/WorkflowDetail";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import type { Workflow, WorkflowExecution } from "../types";
+
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+function renderWithTheme(ui: React.ReactElement) {
+  return render(<ThemeProvider>{ui}</ThemeProvider>);
+}
 
 const mockWorkflow: Workflow = {
   id: "wf-1",
@@ -73,28 +92,28 @@ describe("WorkflowDetail", () => {
   });
 
   it("renders workflow name after loading", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByText("Test Pipeline")).toBeDefined();
     });
   });
 
   it("renders workflow description", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByText("A test workflow")).toBeDefined();
     });
   });
 
   it("renders version number", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByText("v2")).toBeDefined();
     });
   });
 
   it("renders tags", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByText("prod")).toBeDefined();
       expect(screen.getByText("etl")).toBeDefined();
@@ -102,7 +121,7 @@ describe("WorkflowDetail", () => {
   });
 
   it("renders back button that calls onBack", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByTestId("back-btn")).toBeDefined();
     });
@@ -111,7 +130,7 @@ describe("WorkflowDetail", () => {
   });
 
   it("renders execute, clone, and dry-run buttons", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByTestId("execute-btn")).toBeDefined();
       expect(screen.getByTestId("clone-btn")).toBeDefined();
@@ -120,14 +139,14 @@ describe("WorkflowDetail", () => {
   });
 
   it("renders task count", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByText("Tasks (1)")).toBeDefined();
     });
   });
 
   it("renders execution rows", async () => {
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       const rows = screen.getAllByTestId("execution-row");
       expect(rows.length).toBe(1);
@@ -138,7 +157,7 @@ describe("WorkflowDetail", () => {
     (api.getWorkflow as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Network error"),
     );
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByText("Network error")).toBeDefined();
     });
@@ -146,7 +165,7 @@ describe("WorkflowDetail", () => {
 
   it("calls executeWorkflow when execute button is clicked", async () => {
     (api.executeWorkflow as ReturnType<typeof vi.fn>).mockResolvedValue(mockExecution);
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByTestId("execute-btn")).toBeDefined();
     });
@@ -158,7 +177,7 @@ describe("WorkflowDetail", () => {
 
   it("calls cloneWorkflow when clone button is clicked", async () => {
     (api.cloneWorkflow as ReturnType<typeof vi.fn>).mockResolvedValue(mockWorkflow);
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByTestId("clone-btn")).toBeDefined();
     });
@@ -170,7 +189,7 @@ describe("WorkflowDetail", () => {
 
   it("calls dryRunWorkflow when dry-run button is clicked", async () => {
     (api.dryRunWorkflow as ReturnType<typeof vi.fn>).mockResolvedValue(mockExecution);
-    render(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
+    renderWithTheme(<WorkflowDetail workflowId="wf-1" onBack={onBack} />);
     await waitFor(() => {
       expect(screen.getByTestId("dry-run-btn")).toBeDefined();
     });
