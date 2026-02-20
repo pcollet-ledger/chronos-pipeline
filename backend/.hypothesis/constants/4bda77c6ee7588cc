@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/models.py
+# hypothesis_version: 6.151.9
+
+[0.0, 300, 'Tags to add.', 'cancelled', 'completed', 'critical', 'failed', 'high', 'low', 'manual', 'medium', 'pending', 'running']

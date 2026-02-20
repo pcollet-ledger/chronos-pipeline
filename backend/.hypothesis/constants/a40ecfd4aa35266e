@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/services/analytics_service.py
+# hypothesis_version: 6.151.9
+
+[0.0, 30.0, 100, 1000, 10000, 100000, '%Y-%m-%dT%H:%M', 'avg_duration_ms', 'completed', 'failed', 'failure_rate', 'failures', 'max_duration_ms', 'min_duration_ms', 'success_rate', 'time', 'total', 'total_executions', 'workflow_id']

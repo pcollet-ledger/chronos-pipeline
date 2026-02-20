@@ -290,6 +290,16 @@ def bulk_delete_workflows(workflow_ids: List[str]) -> BulkDeleteResponse:
 # Execution
 # ---------------------------------------------------------------------------
 
+def _store_execution(execution: WorkflowExecution) -> None:
+    """Persist an execution and update secondary indexes.
+
+    Args:
+        execution: The execution to store.
+    """
+    _executions[execution.id] = execution
+    _index_execution(execution)
+
+
 def execute_workflow(workflow_id: str, trigger: str = "manual") -> Optional[WorkflowExecution]:
     """Execute a workflow and return the execution record.
 
@@ -322,14 +332,12 @@ def execute_workflow(workflow_id: str, trigger: str = "manual") -> Optional[Work
         if result.status == WorkflowStatus.FAILED:
             execution.status = WorkflowStatus.FAILED
             execution.completed_at = datetime.utcnow()
-            _executions[execution.id] = execution
-            _index_execution(execution)
+            _store_execution(execution)
             return execution
 
     execution.status = WorkflowStatus.COMPLETED
     execution.completed_at = datetime.utcnow()
-    _executions[execution.id] = execution
-    _index_execution(execution)
+    _store_execution(execution)
     return execution
 
 
@@ -436,14 +444,12 @@ def retry_execution(execution_id: str) -> Optional[WorkflowExecution]:
             if result.status == WorkflowStatus.FAILED:
                 new_execution.status = WorkflowStatus.FAILED
                 new_execution.completed_at = datetime.utcnow()
-                _executions[new_execution.id] = new_execution
-                _index_execution(new_execution)
+                _store_execution(new_execution)
                 return new_execution
 
     new_execution.status = WorkflowStatus.COMPLETED
     new_execution.completed_at = datetime.utcnow()
-    _executions[new_execution.id] = new_execution
-    _index_execution(new_execution)
+    _store_execution(new_execution)
     return new_execution
 
 
@@ -489,25 +495,35 @@ def list_executions(
 def _topological_sort(tasks: List[TaskDefinition]) -> List[TaskDefinition]:
     """Sort tasks respecting dependency order.
 
+    Uses DFS with a *visiting* set to detect cycles.
+
     Args:
         tasks: The list of task definitions to sort.
 
     Returns:
         Tasks ordered so that dependencies come before dependents.
+
+    Raises:
+        ValueError: If a dependency cycle is detected.
     """
     task_map: Dict[str, TaskDefinition] = {t.id: t for t in tasks}
     visited: set[str] = set()
+    visiting: set[str] = set()
     order: List[TaskDefinition] = []
 
     def visit(task_id: str) -> None:
         if task_id in visited:
             return
-        visited.add(task_id)
+        if task_id in visiting:
+            raise ValueError(f"Dependency cycle detected involving task '{task_id}'")
+        visiting.add(task_id)
         task = task_map.get(task_id)
         if task:
             for dep_id in task.depends_on:
                 visit(dep_id)
             order.append(task)
+        visiting.discard(task_id)
+        visited.add(task_id)
 
     for task in tasks:
         visit(task.id)

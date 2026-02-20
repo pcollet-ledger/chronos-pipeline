@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/utils/formatters.py
+# hypothesis_version: 6.151.9
+
+[1000, '  Tasks: (none)', '%Y-%m-%d %H:%M:%S', '0ms', 'N/A', '│   ', '└── ', '├── ']

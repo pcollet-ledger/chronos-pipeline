@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/services/workflow_engine.py
+# hypothesis_version: 6.151.9
+
+[1000, ' (copy)', 'aggregate', 'channel', 'completed', 'created_at', 'default', 'dry_run', 'duration_diff_ms', 'executions', 'failed', 'id', 'improved_count', 'log', 'logged', 'manual', 'message', 'name', 'notify', 'post_hook_output', 'pre_hook_output', 'regressed_count', 'retried_from', 'retry', 'status_a', 'status_b', 'summary', 'task_comparison', 'task_id', 'tasks', 'transform', 'unchanged_count', 'updated_at', 'validate', 'version', 'workflow_id']
