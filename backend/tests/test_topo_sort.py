@@ -114,12 +114,30 @@ class TestTopologicalSort:
         assert len(order) == 1
         assert order[0].id == "A"
 
-    def test_self_referencing_task(self):
-        """A task depending on itself should still be included once."""
+    def test_self_referencing_task_raises(self):
+        """A task depending on itself is a cycle and should raise."""
         tasks = [_make_task("A", ["A"])]
-        order = _topological_sort(tasks)
-        assert len(order) == 1
-        assert order[0].id == "A"
+        with pytest.raises(ValueError, match="cycle"):
+            _topological_sort(tasks)
+
+    def test_mutual_cycle_raises(self):
+        """Two tasks depending on each other should raise."""
+        tasks = [
+            _make_task("A", ["B"]),
+            _make_task("B", ["A"]),
+        ]
+        with pytest.raises(ValueError, match="cycle"):
+            _topological_sort(tasks)
+
+    def test_three_node_cycle_raises(self):
+        """A -> B -> C -> A should raise."""
+        tasks = [
+            _make_task("A", ["C"]),
+            _make_task("B", ["A"]),
+            _make_task("C", ["B"]),
+        ]
+        with pytest.raises(ValueError, match="cycle"):
+            _topological_sort(tasks)
 
     def test_large_dag_20_plus_tasks(self):
         """Linear chain of 25 tasks: T0 -> T1 -> ... -> T24."""
