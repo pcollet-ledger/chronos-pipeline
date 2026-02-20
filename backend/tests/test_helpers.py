@@ -2,10 +2,10 @@
 
 from datetime import datetime
 
+from app.utils.formatters import format_duration
 from app.utils.helpers import (
     clamp,
     compute_checksum,
-    format_duration,
     generate_slug,
     paginate,
     safe_get,

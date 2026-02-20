@@ -15,9 +15,9 @@ from app.services.workflow_engine import (
     execute_workflow,
     list_workflows,
 )
+from app.utils.formatters import format_duration
 from app.utils.helpers import (
     clamp,
-    format_duration,
     generate_slug,
 )
 from app.utils.validators import (

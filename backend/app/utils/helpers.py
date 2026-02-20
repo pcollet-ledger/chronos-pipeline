@@ -39,20 +39,6 @@ def paginate(
     }
 
 
-def format_duration(ms: float) -> str:
-    """Format a duration in milliseconds to a human-readable string."""
-    if ms < 1000:
-        return f"{ms:.0f}ms"
-    seconds = ms / 1000
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    minutes = seconds / 60
-    if minutes < 60:
-        return f"{minutes:.1f}m"
-    hours = minutes / 60
-    return f"{hours:.1f}h"
-
-
 def safe_get(data: Dict[str, Any], *keys: str, default: Any = None) -> Any:
     """Safely get a nested value from a dictionary."""
     current = data
