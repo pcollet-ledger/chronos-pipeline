@@ -10,7 +10,7 @@ from typing import Annotated, Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from ..models import WorkflowExecution, WorkflowStatus
+from ..models import ExecutionComparison, WorkflowExecution, WorkflowStatus
 from ..services import workflow_engine
 
 router = APIRouter()
@@ -21,7 +21,7 @@ ExecutionIdPath = Annotated[
 ]
 
 
-@router.get("/executions/compare")
+@router.get("/executions/compare", response_model=ExecutionComparison)
 async def compare_executions(
     ids: Annotated[
         str,

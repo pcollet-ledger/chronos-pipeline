@@ -4,17 +4,13 @@ from __future__ import annotations
 
 from typing import Annotated, List
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from ...models import WorkflowDefinition, WorkflowExecution
 from ...services import workflow_engine
+from .params import WorkflowIdPath
 
 router = APIRouter()
-
-WorkflowIdPath = Annotated[
-    str,
-    Path(description="Unique workflow identifier"),
-]
 
 
 @router.post("/{workflow_id}/execute", response_model=WorkflowExecution)

@@ -34,7 +34,10 @@ async def get_summary(
     return analytics_service.get_summary(days=days)
 
 
-@router.get("/workflows/{workflow_id}/stats")
+@router.get(
+    "/workflows/{workflow_id}/stats",
+    response_model=Dict[str, Any],
+)
 async def get_workflow_stats(
     workflow_id: Annotated[
         str,
@@ -52,7 +55,10 @@ async def get_workflow_stats(
     return analytics_service.get_workflow_stats(workflow_id)
 
 
-@router.get("/timeline")
+@router.get(
+    "/timeline",
+    response_model=List[Dict[str, Any]],
+)
 async def get_timeline(
     hours: Annotated[
         int,
