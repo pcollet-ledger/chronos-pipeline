@@ -53,6 +53,14 @@ export interface WorkflowCreatePayload {
   tags?: string[];
 }
 
+export interface WorkflowUpdatePayload {
+  name?: string;
+  description?: string;
+  tasks?: TaskDefinition[];
+  schedule?: string | null;
+  tags?: string[];
+}
+
 export interface WorkflowExecution {
   id: string;
   workflow_id: string;

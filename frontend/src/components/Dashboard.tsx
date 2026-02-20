@@ -1,4 +1,6 @@
 import type { AnalyticsSummary } from "../types";
+import { useTheme } from "../contexts/ThemeContext";
+import { statusColor } from "../theme";
 import LoadingSpinner from "./LoadingSpinner";
 import EmptyState from "./EmptyState";
 
@@ -11,22 +13,26 @@ function StatCard({
   label,
   value,
   color,
+  surface,
+  textSecondary,
 }: {
   label: string;
   value: string | number;
   color: string;
+  surface: string;
+  textSecondary: string;
 }) {
   return (
     <div
       style={{
-        background: "#1e293b",
+        background: surface,
         borderRadius: "12px",
         padding: "20px",
         minWidth: "200px",
         flex: 1,
       }}
     >
-      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px" }}>
+      <div style={{ fontSize: "13px", color: textSecondary, marginBottom: "8px" }}>
         {label}
       </div>
       <div style={{ fontSize: "28px", fontWeight: 700, color }}>{value}</div>
@@ -35,6 +41,8 @@ function StatCard({
 }
 
 export default function Dashboard({ analytics, loading }: Props) {
+  const { theme } = useTheme();
+
   if (loading) {
     return <LoadingSpinner label="Loading analytics..." />;
   }
@@ -43,18 +51,25 @@ export default function Dashboard({ analytics, loading }: Props) {
     return <EmptyState message="No analytics data available yet." />;
   }
 
-  const statusColors: Record<string, string> = {
-    completed: "#22c55e",
-    failed: "#ef4444",
-    running: "#eab308",
-    pending: "#64748b",
-    cancelled: "#6b7280",
+  const thStyle: React.CSSProperties = {
+    textAlign: "left",
+    padding: "8px 12px",
+    fontSize: "12px",
+    color: theme.textSecondary,
+    fontWeight: 600,
+    textTransform: "uppercase",
+  };
+
+  const tdStyle: React.CSSProperties = {
+    padding: "10px 12px",
+    fontSize: "14px",
+    color: theme.text,
   };
 
   return (
     <div>
       <h2
-        style={{ fontSize: "18px", marginBottom: "20px", color: "#e2e8f0" }}
+        style={{ fontSize: "18px", marginBottom: "20px", color: theme.text }}
       >
         Dashboard
       </h2>
@@ -70,28 +85,36 @@ export default function Dashboard({ analytics, loading }: Props) {
         <StatCard
           label="Pipelines"
           value={analytics.total_workflows}
-          color="#38bdf8"
+          color={theme.info}
+          surface={theme.surface}
+          textSecondary={theme.textSecondary}
         />
         <StatCard
           label="Executions"
           value={analytics.total_executions}
-          color="#a78bfa"
+          color={theme.primary}
+          surface={theme.surface}
+          textSecondary={theme.textSecondary}
         />
         <StatCard
           label="Success Rate"
           value={`${analytics.success_rate}%`}
-          color={analytics.success_rate >= 90 ? "#22c55e" : "#eab308"}
+          color={analytics.success_rate >= 90 ? theme.success : theme.warning}
+          surface={theme.surface}
+          textSecondary={theme.textSecondary}
         />
         <StatCard
           label="Avg Duration"
           value={formatDuration(analytics.avg_duration_ms)}
-          color="#f472b6"
+          color={theme.danger}
+          surface={theme.surface}
+          textSecondary={theme.textSecondary}
         />
       </div>
 
       <div
         style={{
-          background: "#1e293b",
+          background: theme.surface,
           borderRadius: "12px",
           padding: "20px",
           marginBottom: "24px",
@@ -100,7 +123,7 @@ export default function Dashboard({ analytics, loading }: Props) {
         <h3
           style={{
             fontSize: "14px",
-            color: "#94a3b8",
+            color: theme.textSecondary,
             marginBottom: "16px",
           }}
         >
@@ -122,13 +145,13 @@ export default function Dashboard({ analytics, loading }: Props) {
                     width: "10px",
                     height: "10px",
                     borderRadius: "50%",
-                    background: statusColors[status] ?? "#64748b",
+                    background: statusColor[status] ?? theme.textSecondary,
                   }}
                 />
                 <span
                   style={{
                     fontSize: "14px",
-                    color: "#cbd5e1",
+                    color: theme.text,
                     textTransform: "capitalize",
                   }}
                 >
@@ -142,7 +165,7 @@ export default function Dashboard({ analytics, loading }: Props) {
 
       <div
         style={{
-          background: "#1e293b",
+          background: theme.surface,
           borderRadius: "12px",
           padding: "20px",
         }}
@@ -150,20 +173,20 @@ export default function Dashboard({ analytics, loading }: Props) {
         <h3
           style={{
             fontSize: "14px",
-            color: "#94a3b8",
+            color: theme.textSecondary,
             marginBottom: "16px",
           }}
         >
           Recent Executions
         </h3>
         {analytics.recent_executions.length === 0 ? (
-          <div style={{ color: "#475569", fontSize: "14px" }}>
+          <div style={{ color: theme.textSecondary, fontSize: "14px" }}>
             No executions yet
           </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #334155" }}>
+              <tr style={{ borderBottom: `1px solid ${theme.border}` }}>
                 <th style={thStyle}>ID</th>
                 <th style={thStyle}>Status</th>
                 <th style={thStyle}>Trigger</th>
@@ -174,13 +197,13 @@ export default function Dashboard({ analytics, loading }: Props) {
               {analytics.recent_executions.map((ex) => (
                 <tr
                   key={ex.id}
-                  style={{ borderBottom: "1px solid #1e293b" }}
+                  style={{ borderBottom: `1px solid ${theme.surface}` }}
                 >
                   <td style={tdStyle}>{ex.id.slice(0, 8)}...</td>
                   <td style={tdStyle}>
                     <span
                       style={{
-                        color: statusColors[ex.status] ?? "#64748b",
+                        color: statusColor[ex.status] ?? theme.textSecondary,
                         fontWeight: 600,
                         textTransform: "capitalize",
                       }}
@@ -203,21 +226,6 @@ export default function Dashboard({ analytics, loading }: Props) {
     </div>
   );
 }
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "8px 12px",
-  fontSize: "12px",
-  color: "#64748b",
-  fontWeight: 600,
-  textTransform: "uppercase",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  fontSize: "14px",
-  color: "#cbd5e1",
-};
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`;

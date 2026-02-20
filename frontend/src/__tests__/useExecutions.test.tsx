@@ -133,4 +133,44 @@ describe("useExecutions", () => {
       expect(result.current.loading).toBe(false);
     });
   });
+
+  it("handles API returning empty array", async () => {
+    (api.listExecutions as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { result } = renderHook(() => useExecutions());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.executions).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("calls API on each refresh invocation", async () => {
+    const { result } = renderHook(() => useExecutions());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(api.listExecutions).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      result.current.refresh();
+    });
+    await waitFor(() => {
+      expect(api.listExecutions).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("handles multiple rapid refreshes", async () => {
+    const { result } = renderHook(() => useExecutions());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    await act(async () => {
+      result.current.refresh();
+      result.current.refresh();
+      result.current.refresh();
+    });
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.executions).toEqual(mockExecutions);
+  });
 });

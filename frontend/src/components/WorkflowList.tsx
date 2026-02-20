@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Workflow, WorkflowCreatePayload, WorkflowExecution } from "../types";
 import { createWorkflow, deleteWorkflow, executeWorkflow } from "../services/api";
+import { useTheme } from "../contexts/ThemeContext";
 import TaskCard from "./TaskCard";
 import WorkflowForm from "./WorkflowForm";
 import EmptyState from "./EmptyState";
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function WorkflowList({ workflows, onRefresh, loading, onSelectWorkflow }: Props) {
+  const { theme } = useTheme();
   const [showForm, setShowForm] = useState(false);
   const [executionResult, setExecutionResult] =
     useState<WorkflowExecution | null>(null);
@@ -67,7 +69,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
           marginBottom: "20px",
         }}
       >
-        <h2 style={{ fontSize: "18px", color: "#e2e8f0" }}>Pipelines</h2>
+        <h2 style={{ fontSize: "18px", color: theme.text }}>Pipelines</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           data-testid="toggle-form-button"
@@ -75,7 +77,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
             padding: "8px 20px",
             borderRadius: "8px",
             border: "none",
-            background: showForm ? "#334155" : "#2563eb",
+            background: showForm ? theme.surfaceHover : theme.primary,
             color: "#fff",
             cursor: "pointer",
             fontWeight: 600,
@@ -95,15 +97,15 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
       )}
 
       {showForm && (
-        <div
-          style={{
-            background: "#1e293b",
-            borderRadius: "12px",
-            padding: "20px",
-            marginBottom: "24px",
-          }}
-        >
-          <WorkflowForm
+          <div
+            style={{
+              background: theme.surface,
+              borderRadius: "12px",
+              padding: "20px",
+              marginBottom: "24px",
+            }}
+          >
+            <WorkflowForm
             onSubmit={handleCreate}
             onCancel={() => setShowForm(false)}
           />
@@ -124,7 +126,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
             <div
               key={wf.id}
               style={{
-                background: "#1e293b",
+                background: theme.surface,
                 borderRadius: "12px",
                 padding: "16px 20px",
               }}
@@ -141,7 +143,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                   <h3
                     style={{
                       fontSize: "16px",
-                      color: "#e2e8f0",
+                      color: theme.text,
                       fontWeight: 600,
                     }}
                   >
@@ -151,7 +153,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                     <p
                       style={{
                         fontSize: "13px",
-                        color: "#64748b",
+                        color: theme.textSecondary,
                         marginTop: "4px",
                       }}
                     >
@@ -164,20 +166,20 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                     <button
                       onClick={() => onSelectWorkflow(wf.id)}
                       data-testid="view-workflow-btn"
-                      style={btnStyle("#2563eb")}
+                      style={btnStyle(theme.primary)}
                     >
                       View
                     </button>
                   )}
                   <button
                     onClick={() => handleExecute(wf.id)}
-                    style={btnStyle("#059669")}
+                    style={btnStyle(theme.success)}
                   >
                     Run
                   </button>
                   <button
                     onClick={() => handleDelete(wf.id)}
-                    style={btnStyle("#dc2626")}
+                    style={btnStyle(theme.danger)}
                   >
                     Delete
                   </button>
@@ -198,8 +200,8 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                       style={{
                         padding: "2px 8px",
                         borderRadius: "4px",
-                        background: "#334155",
-                        color: "#94a3b8",
+                        background: theme.surfaceHover,
+                        color: theme.textSecondary,
                         fontSize: "12px",
                       }}
                     >
@@ -214,7 +216,7 @@ export default function WorkflowList({ workflows, onRefresh, loading, onSelectWo
                   <div
                     style={{
                       fontSize: "12px",
-                      color: "#64748b",
+                      color: theme.textSecondary,
                       marginBottom: "8px",
                     }}
                   >

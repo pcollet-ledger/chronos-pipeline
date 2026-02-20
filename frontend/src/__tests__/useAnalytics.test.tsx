@@ -140,4 +140,29 @@ describe("useAnalytics", () => {
       expect(result.current.error).toBeNull();
     });
   });
+
+  it("handles timeline API failure independently", async () => {
+    (api.getTimeline as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Timeline error"),
+    );
+    const { result } = renderHook(() => useAnalytics());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.error).toBe("Timeline error");
+  });
+
+  it("re-fetches when days parameter changes", async () => {
+    const { result, rerender } = renderHook(
+      ({ days }) => useAnalytics(days),
+      { initialProps: { days: 30 } },
+    );
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    rerender({ days: 7 });
+    await waitFor(() => {
+      expect(api.getAnalyticsSummary).toHaveBeenCalledWith(7);
+    });
+  });
 });
