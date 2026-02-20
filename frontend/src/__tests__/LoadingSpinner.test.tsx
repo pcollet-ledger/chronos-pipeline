@@ -60,4 +60,24 @@ describe("LoadingSpinner", () => {
     const spinner = screen.getByTestId("spinner");
     expect(spinner.style.width).toBe("0px");
   });
+
+  it("renders spinner with border-radius 50%", () => {
+    render(<LoadingSpinner />);
+    const spinner = screen.getByTestId("spinner");
+    expect(spinner.style.borderRadius).toBe("50%");
+  });
+
+  it("renders with very small size", () => {
+    render(<LoadingSpinner size={1} />);
+    const spinner = screen.getByTestId("spinner");
+    expect(spinner.style.width).toBe("1px");
+    expect(spinner.style.height).toBe("1px");
+  });
+
+  it("renders with large size", () => {
+    render(<LoadingSpinner size={256} />);
+    const spinner = screen.getByTestId("spinner");
+    expect(spinner.style.width).toBe("256px");
+    expect(spinner.style.height).toBe("256px");
+  });
 });

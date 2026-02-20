@@ -70,4 +70,24 @@ describe("EmptyState", () => {
     );
     expect(screen.getByText("A".repeat(100))).toBeDefined();
   });
+
+  it("does not call onAction without user interaction", () => {
+    const onAction = vi.fn();
+    render(
+      <EmptyState message="Empty" actionLabel="Go" onAction={onAction} />,
+    );
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("renders icon with aria-hidden", () => {
+    render(<EmptyState message="Empty" />);
+    const icon = screen.getByText("○");
+    expect(icon.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("renders message with special characters", () => {
+    const msg = "No items found <script>alert('xss')</script>";
+    render(<EmptyState message={msg} />);
+    expect(screen.getByText(msg)).toBeDefined();
+  });
 });

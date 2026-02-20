@@ -151,4 +151,22 @@ describe("useWorkflows", () => {
       expect(result.current.error).toBeNull();
     });
   });
+
+  it("handles API returning empty array", async () => {
+    (api.listWorkflows as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { result } = renderHook(() => useWorkflows());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.workflows).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("returns empty workflows array initially", async () => {
+    const { result } = renderHook(() => useWorkflows());
+    expect(result.current.workflows).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+  });
 });

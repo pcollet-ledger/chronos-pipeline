@@ -6,6 +6,7 @@ import type {
   Workflow,
   WorkflowCreatePayload,
   WorkflowExecution,
+  WorkflowUpdatePayload,
   WorkflowVersionSnapshot,
 } from "../types";
 
@@ -46,7 +47,7 @@ export function createWorkflow(data: WorkflowCreatePayload): Promise<Workflow> {
 
 export function updateWorkflow(
   id: string,
-  data: Partial<Workflow>,
+  data: WorkflowUpdatePayload,
 ): Promise<Workflow> {
   return request<Workflow>(`/workflows/${id}`, {
     method: "PATCH",
