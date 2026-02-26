@@ -102,8 +102,8 @@ def validate_offset(offset: int) -> Optional[str]:
     return None
 
 
-def validate_positive_int(value: int, name: str) -> Optional[str]:
-    """Return an error message if *value* is not a positive integer.
+def validate_non_negative_int(value: int, name: str) -> Optional[str]:
+    """Return an error message if *value* is negative.
 
     Args:
         value: The integer to validate.
@@ -115,6 +115,10 @@ def validate_positive_int(value: int, name: str) -> Optional[str]:
     if value < 0:
         return f"{name} must be >= 0"
     return None
+
+
+# Backward-compatible alias
+validate_positive_int = validate_non_negative_int
 
 
 def is_valid_uuid(value: str) -> bool:

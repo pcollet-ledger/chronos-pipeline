@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/utils/helpers.py
+# hypothesis_version: 6.151.9
+
+[1000, '-', '-+', 'Z', '[\\s_]+', '[^\\w\\s-]', 'has_more', 'items', 'limit', 'offset', 'total', 'utf-8']

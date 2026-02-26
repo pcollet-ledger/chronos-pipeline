@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/routes/workflows/crud.py
+# hypothesis_version: 6.151.9
+
+[201, 204, 404, 1000, '/', '/bulk-delete', '/{workflow_id}', 'Workflow not found']

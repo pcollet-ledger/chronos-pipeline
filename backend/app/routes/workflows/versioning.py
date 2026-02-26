@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, List
+from typing import Annotated, Any, List
 
 from fastapi import APIRouter, HTTPException, Path
 
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/{workflow_id}/history", response_model=List[WorkflowVersionSnapshot])
 async def get_workflow_history(
     workflow_id: WorkflowIdPath,
-) -> list[dict]:
+) -> List[dict[str, Any]]:
     """Return all previous version snapshots, newest first."""
     history = workflow_engine.get_workflow_history(workflow_id)
     if history is None:
@@ -28,7 +28,7 @@ async def get_workflow_history(
 async def get_workflow_version(
     workflow_id: WorkflowIdPath,
     version: Annotated[int, Path(ge=1, description="Version number")],
-) -> dict:
+) -> dict[str, Any]:
     """Return a specific version snapshot."""
     snap = workflow_engine.get_workflow_version(workflow_id, version)
     if snap is None:

@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/routes/analytics.py
+# hypothesis_version: 6.151.9
+
+[1440, 8760, 99999, '/summary', '/timeline']

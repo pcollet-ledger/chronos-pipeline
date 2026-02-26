@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/utils/validators.py
+# hypothesis_version: 6.151.9
+
+[100, 200, 1000, 'aggregate', 'log', 'notify', 'transform', 'validate']

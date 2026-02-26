@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/main.py
+# hypothesis_version: 6.151.9
+
+['*', '/api/analytics', '/api/tasks', '/api/workflows', '/health', '0.1.0', 'Chronos Pipeline', 'analytics', 'healthy', 'service', 'status', 'tasks', 'workflows']

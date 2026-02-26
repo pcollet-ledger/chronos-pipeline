@@ -1,0 +1,4 @@
+# file: /home/pcollet/work/recover/master_chapeau/workspaces/stat_pump/chronos-pipeline/backend/app/routes/workflows/execution.py
+# hypothesis_version: 6.151.9
+
+[201, 404, 1000, '/{workflow_id}/clone', 'Workflow not found', 'manual']
